@@ -1,6 +1,20 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.20;
 
-contract SellImages {
+import "github.com/oraclize/ethereum-api/oraclizeAPI_0.5.sol";
+
+library OraclizeUtils {
+    function enoughBalance(uint balance) returns (bool) {
+        // oraclize queries require a min of 200k gas * 20 Gwei
+        // = 0.004 ETH
+        if (balance >= (200000 * 20)) {
+            return true;
+        }
+        return false;
+    }
+}
+
+
+contract SellImages is usingOraclize {
     /* @dev One contract created per seller address
     *  @dev This contract stores registry of IPFS hash
     *  addresses (1 encrypted, 1 unencrypted) referencing
@@ -15,15 +29,21 @@ contract SellImages {
     // protect other contracts from introspecting registry of IPFS
     // key is unencrypted IPFS
     mapping(string => SaleStruct) private registry;
+    mapping(bytes32 => bool) validIds; // used for validating Query IDs
+
     address public owner;
     uint public creationTime;
     struct SaleStruct {
-        uint price;
+        uint price; //in Gwei (10^-18 ETH / 1 Gwei)
         uint numSales;
-        uint expiry; //based on block number
-        uint discount; //pct expressed as int interval [0-100]
+        uint expiry; // based on block number
+        uint discount; // pct expressed as int interval [0-100]
         string encryptIpfsHash;
+        string decryptIpfsHash; // transient storage for image IPFS for async oraclize callback
     }
+
+    // events used to track contract actions
+    event LogOraclizeQuery(string description);
 
     constructor() public {
         owner = msg.sender;
@@ -57,10 +77,40 @@ contract SellImages {
     function addImageToRegistry(string unencryptIpfsHash, string encryptIpfsHash,
         uint discount, uint price, uint expiry) external onlyOwner {
         SaleStruct memory saleStruct = SaleStruct({price: price, discount: discount,
-            expiry: expiry, encryptIpfsHash: encryptIpfsHash, numSales: 0
+            expiry: expiry, encryptIpfsHash: encryptIpfsHash, numSales: 0,
+            decryptIpfsHash: "0"
             });
         registry[unencryptIpfsHash] = saleStruct;
 
+    }
+
+    // buyFromRegistry uses check-effects-interactions pattern to
+    // check msg value sent against price of image corresponding to IPFS hash,
+    // ensure unencrypted hash of true image is available from oraclize
+    // increment contract balance by price, send remainder to caller
+    // check off query to prevent replay attacks
+    // ultimately return unencrypted IPFS hash to caller for download
+    function buyFromRegistry(string unencryptIpfsHash) payable public returns (string) {
+        SaleStruct salesStruct = registry[unencryptIpfsHash];
+        require(OraclizeUtils.enoughBalance(this.balance), "Insuffucient Contract balance");
+        require(msg.value >= salesStruct.price, "Insufficient Eth to buy image");
+
+        // send query using decrypt data source
+        // only deployed contract address can decrypt exact string
+        // that was encrypted using oraclize public api
+        bytes32 queryId = oraclize_query("decrypt", salesStruct.encryptIpfsHash);
+
+        LogOraclizeQuery("Oraclize query was send, standing by for answer...");
+
+        // add query ID to mapping
+        validIds[queryId] = true;
+    }
+
+    // Callback function for Oraclize once it retrieves data from query invocation
+    function __callback(bytes32 queryId, string result, bytes proof) public {
+        require(msg.sender == oraclize_cbAddress());
+        // result s Should be decrypted hash
+        // TODO: make sure result is accessible by calling func to return to client
     }
     // external
     // public
