@@ -1,0 +1,31 @@
+{
+  "name": "imagiato",
+  "version": "1.0.0",
+  "description": "Decentralized P2P Stock Image Marketplace on Ethereum",
+  "main": "truffle.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "dev": "lite-server",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "lite-server": "^2.3.0"
+  },
+  "dependencies": {
+    "chai": "^4.1.2",
+    "web3": "^1.0.0-beta.33",
+    "ganache-cli": "^6.1.6"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jterzis/imagiato.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jterzis/imagiato/issues"
+  },
+  "homepage": "https://github.com/jterzis/imagiato#readme"
+}

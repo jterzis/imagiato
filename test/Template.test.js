@@ -1,14 +1,14 @@
 /* eslint-disable no-undef */
-const assert = require('chai').assert // use Chai Assertion Library
-const ganache = require('ganache-cli') // use ganache-cli with ethereum-bridge for Oraclize
+const assert = require("chai").assert; // use Chai Assertion Library
+const ganache = require("ganache-cli"); // use ganache-cli with ethereum-bridge for Oraclize
 
 // Configure web3 1.0.0 instead of the default version with Truffle
-const Web3 = require('web3')
-const provider = ganache.provider()
-const web3 = new Web3(provider)
+const Web3 = require('web3');
+const provider = ganache.provider();
+const web3 = new Web3(provider);
 
 // Define the contract we'll be testing
-const Template = artifacts.require('Template')
+const Template = artifacts.require('Template');
 
 // Define tests
 contract('Template', accounts => {
@@ -25,7 +25,7 @@ it('sends a query and receives a response', async function() {
     // for simplicity, we'll do both checks in this function
 
     // set this test to timeout after 1 minute
-    this.timeout(60 * 1000)
+    this.timeout(60 * 1000);
 
     // call the getRandomNumber function
     // make sure to send enough Ether and to set gas limit sufficiently high
@@ -33,7 +33,7 @@ it('sends a query and receives a response', async function() {
         from: accounts[0],
         value: web3.utils.toWei('0.000175', 'ether'),
         gas: '3000000',
-    })
+    });
 
     // Method 1 to check for events: loop through the "result" variable
 
