@@ -1,20 +1,12 @@
 pragma solidity ^0.4.20;
 
-import "github.com/oraclize/ethereum-api/oraclizeAPI_0.5.sol";
-
-library OraclizeUtils {
-    function enoughBalance(uint balance) returns (bool) {
-        // oraclize queries require a min of 200k gas * 20 Gwei
-        // = 0.004 ETH
-        if (balance >= (200000 * 20)) {
-            return true;
-        }
-        return false;
-    }
-}
+// github imports only in Remix IDE
+// import "github.com/oraclize/ethereum-api/oraclizeAPI_0.5.sol";
+import "./OraclizeAPI_0pt5.sol";
+import "./OraclizeUtils.sol";
 
 
-contract SellImages is usingOraclize {
+contract ImageSeller is usingOraclize {
     /* @dev One contract created per seller address
     *  @dev This contract stores registry of IPFS hash
     *  addresses (1 encrypted, 1 unencrypted) referencing
@@ -26,24 +18,29 @@ contract SellImages is usingOraclize {
     *  reference and download image from IPFS host.
     */
 
-    // protect other contracts from introspecting registry of IPFS
-    // key is unencrypted IPFS
+    uint constant gasLimitForOraclize = 175000; // gas limit for Oraclize callback
     mapping(string => SaleStruct) private registry;
-    mapping(bytes32 => bool) validIds; // used for validating Query IDs
+    mapping(bytes32 => QueryStruct) private validIds; // used for validating Query IDs
 
     address public owner;
     uint public creationTime;
+
+    struct QueryStruct {
+        bool queried; //on when query in transit
+        string decryptIpfsHash; //image unencrypted IPFS hash *protect* this field
+    }
+
     struct SaleStruct {
         uint price; //in Gwei (10^-18 ETH / 1 Gwei)
         uint numSales;
         uint expiry; // based on block number
         uint discount; // pct expressed as int interval [0-100]
         string encryptIpfsHash;
-        string decryptIpfsHash; // transient storage for image IPFS for async oraclize callback
     }
 
     // events used to track contract actions
     event LogOraclizeQuery(string description);
+    event LogResultReceived(string result);
 
     constructor() public {
         owner = msg.sender;
@@ -77,9 +74,7 @@ contract SellImages is usingOraclize {
     function addImageToRegistry(string unencryptIpfsHash, string encryptIpfsHash,
         uint discount, uint price, uint expiry) external onlyOwner {
         SaleStruct memory saleStruct = SaleStruct({price: price, discount: discount,
-            expiry: expiry, encryptIpfsHash: encryptIpfsHash, numSales: 0,
-            decryptIpfsHash: "0"
-            });
+            expiry: expiry, encryptIpfsHash: encryptIpfsHash, numSales: 0});
         registry[unencryptIpfsHash] = saleStruct;
 
     }
@@ -91,26 +86,35 @@ contract SellImages is usingOraclize {
     // check off query to prevent replay attacks
     // ultimately return unencrypted IPFS hash to caller for download
     function buyFromRegistry(string unencryptIpfsHash) payable public returns (string) {
-        SaleStruct salesStruct = registry[unencryptIpfsHash];
-        require(OraclizeUtils.enoughBalance(this.balance), "Insuffucient Contract balance");
-        require(msg.value >= salesStruct.price, "Insufficient Eth to buy image");
+        SaleStruct memory salesStruct = registry[unencryptIpfsHash];
+        require(OraclizeUtils.enoughBalance(msg.value), "Not enough gas");
+        require(msg.value >= (salesStruct.price - 0.004 ether), "Insufficient Eth to buy image");
 
         // send query using decrypt data source
         // only deployed contract address can decrypt exact string
         // that was encrypted using oraclize public api
-        bytes32 queryId = oraclize_query("decrypt", salesStruct.encryptIpfsHash);
+        bytes32 queryId = oraclize_query("decrypt", salesStruct.encryptIpfsHash,
+            gasLimitForOraclize);
 
-        LogOraclizeQuery("Oraclize query was send, standing by for answer...");
+        emit LogOraclizeQuery("Oraclize query was send, standing by for answer...");
 
-        // add query ID to mapping
-        validIds[queryId] = true;
+        // add unique query ID to mapping with true until callback called
+        validIds[queryId] = QueryStruct({queried: true, decryptIpfsHash: "0"});
+        registry[unencryptIpfsHash].numSales += 1;
     }
 
     // Callback function for Oraclize once it retrieves data from query invocation
     function __callback(bytes32 queryId, string result, bytes proof) public {
         require(msg.sender == oraclize_cbAddress());
-        // result s Should be decrypted hash
-        // TODO: make sure result is accessible by calling func to return to client
+        require(validIds[queryId].queried);
+
+        // result Should be decrypted hash
+        validIds[queryId].decryptIpfsHash = result;
+
+        emit LogResultReceived(result); // TODO: remove in production
+        // make sure callback for a given query Id is never called twice
+        validIds[queryId].queried = false;
+
     }
     // external
     // public
