@@ -41,6 +41,7 @@ contract ImageSeller is usingOraclize {
     // events used to track contract actions
     event LogOraclizeQuery(string description);
     event LogResultReceived(string result);
+    event LogHashRemoved(string description, string unencryptIpfsHash, address owner);
 
     constructor() public {
         owner = msg.sender;
@@ -101,6 +102,16 @@ contract ImageSeller is usingOraclize {
         // add unique query ID to mapping with true until callback called
         validIds[queryId] = QueryStruct({queried: true, decryptIpfsHash: "0"});
         registry[unencryptIpfsHash].numSales += 1;
+    }
+
+    // removeFromRegistry removes an image from the sale registry
+    // and emits an event. Only the seller can remove an image.
+    // Client needs to ensure all buyers have downloaded images
+    // from IPFS before de-mounting image hash after removal from
+    // registry.
+    function removeFromRegistry(string unencryptIpfsHash) public onlyOwner {
+        delete registry[unencryptIpfsHash];
+        emit LogHashRemoved("IPFS Hash removed from registry", unencryptIpfsHash, msg.sender);
     }
 
     // Callback function for Oraclize once it retrieves data from query invocation
