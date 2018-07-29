@@ -19,8 +19,9 @@ contract ImageSeller is usingOraclize {
     */
 
     uint constant gasLimitForOraclize = 175000; // gas limit for Oraclize callback
-    mapping(string => SaleStruct) private registry;
+    mapping(string => SaleStruct) private registry; //private so that registry is hidden from other contracts
     mapping(bytes32 => QueryStruct) private validIds; // used for validating Query IDs
+    mapping(address => uint) private withdrawals; // keep track of balance withdrawals
 
     address public owner;
     uint public creationTime;
@@ -73,7 +74,7 @@ contract ImageSeller is usingOraclize {
     // encrypted string first can decrypt the hash.
     // Gas cost incurred by seller.
     function addImageToRegistry(string unencryptIpfsHash, string encryptIpfsHash,
-        uint discount, uint price, uint expiry) external onlyOwner {
+        uint discount, uint price, uint expiry) public onlyOwner {
         SaleStruct memory saleStruct = SaleStruct({price: price, discount: discount,
             expiry: expiry, encryptIpfsHash: encryptIpfsHash, numSales: 0});
         registry[unencryptIpfsHash] = saleStruct;
@@ -85,7 +86,9 @@ contract ImageSeller is usingOraclize {
     // ensure unencrypted hash of true image is available from oraclize
     // increment contract balance by price, send remainder to caller
     // check off query to prevent replay attacks
-    // ultimately return unencrypted IPFS hash to caller for download
+    // ultimately return unencrypted IPFS hash to caller for download.
+    // TODO: use state object and 2 stage purchase to ensure buyer obtains unencrypted IPFS hash
+    // TODO: or revert transaction see https://solidity.readthedocs.io/en/v0.4.24/solidity-by-example.html
     function buyFromRegistry(string unencryptIpfsHash) payable public returns (string) {
         SaleStruct memory salesStruct = registry[unencryptIpfsHash];
         require(OraclizeUtils.enoughBalance(msg.value), "Not enough gas");
@@ -112,6 +115,15 @@ contract ImageSeller is usingOraclize {
     function removeFromRegistry(string unencryptIpfsHash) public onlyOwner {
         delete registry[unencryptIpfsHash];
         emit LogHashRemoved("IPFS Hash removed from registry", unencryptIpfsHash, msg.sender);
+    }
+
+    // withdrawBalance transfers balance to an address
+    // uses check-effects-interactions and only owner can call
+    function withdrawBalance(address withdrawAddress) public onlyOwner {
+        // transfer throws on exception, safe against re-entrancy
+        require(address(this).balance > 0, "Nothing to withdraw from balance");
+        withdrawals[withdrawAddress] = address(this).balance;
+        withdrawAddress.transfer(address(this).balance);
     }
 
     // Callback function for Oraclize once it retrieves data from query invocation
