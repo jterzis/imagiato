@@ -19,20 +19,20 @@ contract ImageSeller is usingOraclize {
     */
 
     uint constant gasLimitForOraclize = 175000; // gas limit for Oraclize callback
-    mapping(string => SaleStruct) private registry; //private so that registry is hidden from other contracts
+    mapping(string => SaleStruct) private registry; // private so that registry is hidden from other contracts
     mapping(bytes32 => QueryStruct) private validIds; // used for validating Query IDs
     mapping(address => uint) private withdrawals; // keep track of balance withdrawals
-
-    address public owner;
+    address public factory; // address of factory parent contract
+    address public owner; // seller and creator of child contract
     uint public creationTime;
 
     struct QueryStruct {
-        bool queried; //on when query in transit
-        string decryptIpfsHash; //image unencrypted IPFS hash *protect* this field
+        bool queried; // on when query in transit
+        string decryptIpfsHash; // image unencrypted IPFS hash *protect* this field
     }
 
     struct SaleStruct {
-        uint price; //in Gwei (10^-18 ETH / 1 Gwei)
+        uint price; // in Gwei (10^-18 ETH / 1 Gwei)
         uint numSales;
         uint expiry; // based on block number
         uint discount; // pct expressed as int interval [0-100]
@@ -44,8 +44,9 @@ contract ImageSeller is usingOraclize {
     event LogResultReceived(string result);
     event LogHashRemoved(string description, string unencryptIpfsHash, address owner);
 
-    constructor() public {
-        owner = msg.sender;
+    constructor(address _owner) public {
+        owner = _owner;
+        factory = msg.sender;
         creationTime = now;
     }
 

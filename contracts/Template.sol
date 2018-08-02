@@ -1,5 +1,6 @@
 pragma solidity ^0.4.20;
 /*
+  TODO: Remove in production this is only for testing phase
   Dev template for testing Oraclize integration
   Import the Oraclize contract
   outside of Remix, direct imports from GitHub may not be supported

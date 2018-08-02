@@ -17,8 +17,9 @@
   },
   "dependencies": {
     "chai": "^4.1.2",
-    "web3": "^1.0.0-beta.33",
-    "ganache-cli": "^6.1.6"
+    "ganache-cli": "^6.1.6",
+    "help": "^3.0.2",
+    "web3": "^1.0.0-beta.35"
   },
   "repository": {
     "type": "git",
