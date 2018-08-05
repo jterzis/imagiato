@@ -10,7 +10,7 @@ contract ImageSeller is usingOraclize {
     /* @dev One contract created per seller address
     *  @dev This contract stores registry of IPFS hash
     *  addresses (1 encrypted, 1 unencrypted) referencing
-    *  image location in IPFS.
+    *  image locations in IPFS per seller (owner).
     *  @dev Sales are performed via atomic transfer of eth
     *  to contract owner's address and de-cryption of IPFS
     *  encrypted hash of full size non watermarked image.
@@ -43,8 +43,11 @@ contract ImageSeller is usingOraclize {
     event LogOraclizeQuery(string description);
     event LogResultReceived(string result);
     event LogHashRemoved(string description, string unencryptIpfsHash, address owner);
+    event LogAddImageToRegistry(string description);
+    event LogImageSellerOwner(address);
 
     constructor(address _owner) public {
+        emit LogImageSellerOwner(_owner);
         owner = _owner;
         factory = msg.sender;
         creationTime = now;
@@ -76,10 +79,11 @@ contract ImageSeller is usingOraclize {
     // Gas cost incurred by seller.
     function addImageToRegistry(string unencryptIpfsHash, string encryptIpfsHash,
         uint discount, uint price, uint expiry) public onlyOwner {
+        emit LogAddImageToRegistry('About to add image to registry');
         SaleStruct memory saleStruct = SaleStruct({price: price, discount: discount,
             expiry: expiry, encryptIpfsHash: encryptIpfsHash, numSales: 0});
         registry[unencryptIpfsHash] = saleStruct;
-
+        emit LogAddImageToRegistry('Image added to registry');
     }
 
     // buyFromRegistry uses check-effects-interactions pattern to
@@ -140,8 +144,9 @@ contract ImageSeller is usingOraclize {
         validIds[queryId].queried = false;
 
     }
-    // external
-    // public
-    // internal
-    // private
+
+    function fooImageSeller(string payload) public {
+        emit LogResultReceived(payload);
+        emit LogImageSellerOwner(this.owner);
+    }
 }
