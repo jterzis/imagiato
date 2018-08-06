@@ -38,10 +38,10 @@ contract Proxy {
         emit LogMsgSender(msg.sender);
         address contractAddr = getSellerContract(msg.sender);
         require(contractAddr != ZERO_ADDR); // child contract needs to be in existence
-        // for uint in call signature you must use uint256
         //ImageSeller contractImageSeller = ImageSeller(contractAddr);
         //contractImageSeller.addImageToRegistry(unencryptIpfsHash, encryptIpfsHash, discount, price, expiry);
 
+        // for uint in call signature you must use uint256
         bool response = contractAddr.call(
             bytes4(keccak256("addImageToRegistry(string,string,uint256,uint256,uint256)")),
                 unencryptIpfsHash, encryptIpfsHash, discount, price, expiry);
