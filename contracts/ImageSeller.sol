@@ -46,7 +46,7 @@ contract ImageSeller is usingOraclize {
     event LogAddImageToRegistry(string description);
     event LogImageSellerOwner(address);
 
-    constructor(address _owner) public {
+    function ImageSeller(address _owner) public {
         emit LogImageSellerOwner(_owner);
         owner = _owner;
         factory = msg.sender;
@@ -59,6 +59,7 @@ contract ImageSeller is usingOraclize {
     // Added so ether sent to this contract is reverted if the contract fails
     // otherwise, the sender's money is transferred to contract
     function () {
+        emit LogResultReceived("Reverting! Something went wrong!");
         revert();
     }
 
@@ -78,7 +79,7 @@ contract ImageSeller is usingOraclize {
     // encrypted string first can decrypt the hash.
     // Gas cost incurred by seller.
     function addImageToRegistry(string unencryptIpfsHash, string encryptIpfsHash,
-        uint discount, uint price, uint expiry) public onlyOwner {
+        uint256 discount, uint256 price, uint256 expiry) public onlyOwner {
         emit LogAddImageToRegistry('About to add image to registry');
         SaleStruct memory saleStruct = SaleStruct({price: price, discount: discount,
             expiry: expiry, encryptIpfsHash: encryptIpfsHash, numSales: 0});
@@ -147,6 +148,6 @@ contract ImageSeller is usingOraclize {
 
     function fooImageSeller(string payload) public {
         emit LogResultReceived(payload);
-        emit LogImageSellerOwner(this.owner);
+        emit LogImageSellerOwner(owner);
     }
 }

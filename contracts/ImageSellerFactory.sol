@@ -8,6 +8,7 @@ import "./OraclizeUtils.sol";
 import "./ImageSeller.sol";
 
 contract Proxy {
+    // type cast to 40 byte 0 address of form 0x0000...
     address public constant ZERO_ADDR = address(0x0);
 
     event LogMsgSender(address sender);
@@ -33,13 +34,19 @@ contract Proxy {
     // encoding/transport mechanism to call
     // ImageSeller functions
     function addImageToRegistry(string unencryptIpfsHash, string encryptIpfsHash,
-        uint discount, uint price, uint expiry) public returns(bool) {
-        require(address(registrySellers[msg.sender]) != address(this.ZERO_ADDR)); // child contract needs to be in existence
+        uint256 discount, uint256 price, uint256 expiry) public returns(bool) {
         emit LogMsgSender(msg.sender);
-        bool response = registrySellers[msg.sender].call(
-            bytes4(sha3("addImageToRegistry(string, string, uint, uint, uint)")),
+        address contractAddr = getSellerContract(msg.sender);
+        require(contractAddr != ZERO_ADDR); // child contract needs to be in existence
+        // for uint in call signature you must use uint256
+        //ImageSeller contractImageSeller = ImageSeller(contractAddr);
+        //contractImageSeller.addImageToRegistry(unencryptIpfsHash, encryptIpfsHash, discount, price, expiry);
+
+        bool response = contractAddr.call(
+            bytes4(keccak256("addImageToRegistry(string,string,uint256,uint256,uint256)")),
                 unencryptIpfsHash, encryptIpfsHash, discount, price, expiry);
-        emit LogAddImageToRegistry(response);
+
+        //emit LogAddImageToRegistry();
         return response;
     }
     // TODO: add rest of functions from ImageSeller
@@ -48,15 +55,31 @@ contract Proxy {
 
 contract ImageSellerFactory is Proxy {
 
+    address[] registrySellersContracts;
+
     event LogImageSellerCreation(string description);
     event LogMsgSender(address sender);
+    event LogImageSeller(address sender);
+
+    function getContracts() view returns(address[]) {
+        return registrySellersContracts;
+    }
 
     function createImageSeller() public {
-        if (registrySellers[msg.sender] == 0) {
+        // note: msg.sender is 0 in truffle console
+        // call createImageSeller with {from: account} last
+        // parameter to drive who msg.sender is.
+        address owner = msg.sender;
+        if (registrySellers[owner] == 0) {
             emit LogImageSellerCreation('Created new image seller');
-            registrySellers[msg.sender] = new ImageSeller(msg.sender);
-            emit LogMsgSender(msg.sender);
+            address imageSeller = new ImageSeller(owner);
+            emit LogImageSeller(imageSeller);
+            registrySellers[owner] = imageSeller;
+            registrySellersContracts.push(imageSeller);
+            emit LogMsgSender(owner);
             numSellers += 1;
+        } else {
+            emit LogImageSellerCreation('Owner address already has an ImageSeller contract');
         }
     }
     // TODO: add safe destroy function
