@@ -80,6 +80,7 @@ contract ImageSeller is usingOraclize {
     // Gas cost incurred by seller.
     function addImageToRegistry(string unencryptIpfsHash, string encryptIpfsHash,
         uint256 discount, uint256 price, uint256 expiry) public onlyOwner {
+
         emit LogAddImageToRegistry('About to add image to registry');
         SaleStruct memory saleStruct = SaleStruct({price: price, discount: discount,
             expiry: expiry, encryptIpfsHash: encryptIpfsHash, numSales: 0});
@@ -146,6 +147,7 @@ contract ImageSeller is usingOraclize {
 
     }
 
+    // TODO: remove in prod
     function fooImageSeller(string payload) public {
         emit LogResultReceived(payload);
         emit LogImageSellerOwner(owner);

@@ -16,11 +16,31 @@ contract Proxy {
 
     // account addresses mapped to imageseller contract instances
     mapping(address => address) public registrySellers;
+    // unencrypt ipfs hashes mapped to imageseller contract instances
+    mapping(string => address) registryHashes;
+
     uint public numSellers;
+
+    modifier onlySeller() {
+        address contractAddr = getSellerContract(msg.sender);
+        require(contractAddr != ZERO_ADDR);
+        _;
+    }
+
+    modifier mustExist(string unencryptHash) {
+        address contractAddr = getSellerContractFromHash(unencryptHash);
+        require(contractAddr != ZERO_ADDR);
+        _;
+    }
 
     function getSellerContract(address addr) public view returns (address) {
         emit LogMsgSender(addr);
         return registrySellers[addr];
+    }
+
+    function getSellerContractFromHash(string unencryptHash) public view returns (address) {
+        emit LogMsgSender(msg.sender);
+        return registryHashes[unencryptHash];
     }
 
     function fooImageSeller(string payload) public returns(bool) {
@@ -30,26 +50,56 @@ contract Proxy {
         return response;
     }
 
+    // buyFromRegistry proxy to ImageSeller
+    // pass value from caller via call mechanism
+    function buyFromRegistry(string unencryptIpfsHash) payable public mustExist(unencryptIpfsHash) returns(bool) {
+        address contractAddr = getSellerContractFromHash(unencryptIpfsHash);
+        emit LogMsgSender(msg.sender);
+        bool response = contractAddr.call.value(msg.value)(
+            bytes4(keccak256("buyFromRegistry(string)")), unencryptIpfsHash);
+        return response;
+    }
+
     // addImageToRegistry: proxy contract uses call to call
     // encoding/transport mechanism to call
     // ImageSeller functions
     function addImageToRegistry(string unencryptIpfsHash, string encryptIpfsHash,
-        uint256 discount, uint256 price, uint256 expiry) public returns(bool) {
+        uint256 discount, uint256 price, uint256 expiry) public onlySeller returns(bool) {
+
         emit LogMsgSender(msg.sender);
         address contractAddr = getSellerContract(msg.sender);
-        require(contractAddr != ZERO_ADDR); // child contract needs to be in existence
         //ImageSeller contractImageSeller = ImageSeller(contractAddr);
         //contractImageSeller.addImageToRegistry(unencryptIpfsHash, encryptIpfsHash, discount, price, expiry);
-
         // for uint in call signature you must use uint256
         bool response = contractAddr.call(
             bytes4(keccak256("addImageToRegistry(string,string,uint256,uint256,uint256)")),
                 unencryptIpfsHash, encryptIpfsHash, discount, price, expiry);
-
-        //emit LogAddImageToRegistry();
+        if (response == true) {
+            registryHashes[unencryptIpfsHash] = contractAddr;
+        }
         return response;
     }
-    // TODO: add rest of functions from ImageSeller
+
+    // removeFromRegistry proxy to ImageSeller
+    function removeFromRegistry(string unencryptIpfsHash) public onlySeller returns(bool) {
+        emit LogMsgSender(msg.sender);
+        address contractAddr = getSellerContract(msg.sender);
+        bool response = contractAddr.call(
+            bytes4(keccak256("removeFromRegistry(string)")), unencryptIpfsHash);
+        if (response == true) {
+            delete registryHashes[unencryptIpfsHash];
+        }
+        return response;
+    }
+
+    // withdrawBalance proxy to ImageSeller
+    function withdrawBalance(address withdrawAddress) public onlySeller returns(bool) {
+        emit LogMsgSender(msg.sender);
+        address contractAddr = getSellerContract(msg.sender);
+        bool response = contractAddr.call(
+            bytes4(keccak256("withdrawBalance(address)")), withdrawAddress);
+        return response;
+    }
 }
 
 
