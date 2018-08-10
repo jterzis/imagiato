@@ -26,16 +26,23 @@ contract ImageSeller is usingOraclize {
     address public owner; // seller and creator of child contract
     uint public creationTime;
 
+    event LogMsgSender(address sender);
+
+    function getSellerEncryptHash(string unencryptHash) public view returns (string) {
+        emit LogMsgSender(msg.sender);
+        return registry[unencryptHash].encryptIpfsHash;
+    }
+
     struct QueryStruct {
         bool queried; // on when query in transit
         string decryptIpfsHash; // image unencrypted IPFS hash *protect* this field
     }
 
     struct SaleStruct {
-        uint price; // in Gwei (10^-18 ETH / 1 Gwei)
-        uint numSales;
-        uint expiry; // based on block number
-        uint discount; // pct expressed as int interval [0-100]
+        uint256 price; // in Gwei (10^-18 ETH / 1 Gwei)
+        uint256 numSales;
+        uint256 expiry; // based on block number
+        uint256 discount; // pct expressed as int interval [0-100]
         string encryptIpfsHash;
     }
 
@@ -82,9 +89,12 @@ contract ImageSeller is usingOraclize {
         uint256 discount, uint256 price, uint256 expiry) public onlyOwner {
 
         emit LogAddImageToRegistry('About to add image to registry');
-        SaleStruct memory saleStruct = SaleStruct({price: price, discount: discount,
-            expiry: expiry, encryptIpfsHash: encryptIpfsHash, numSales: 0});
-        registry[unencryptIpfsHash] = saleStruct;
+        // initialize a struct to memory by directly initing each field
+        registry[unencryptIpfsHash].price = price;
+        registry[unencryptIpfsHash].discount = discount;
+        registry[unencryptIpfsHash].expiry = expiry;
+        registry[unencryptIpfsHash].encryptIpfsHash = encryptIpfsHash;
+        registry[unencryptIpfsHash].numSales = 0;
         emit LogAddImageToRegistry('Image added to registry');
     }
 

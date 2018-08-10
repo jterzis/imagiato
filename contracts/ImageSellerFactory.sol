@@ -9,10 +9,11 @@ import "./ImageSeller.sol";
 
 contract Proxy {
     // type cast to 40 byte 0 address of form 0x0000...
-    address public constant ZERO_ADDR = address(0x0);
+    address public constant ZERO_ADDR = address(0);
 
     event LogMsgSender(address sender);
     event LogAddImageToRegistry(bool response);
+    event LogImageAdded(string imageName);
 
     // account addresses mapped to imageseller contract instances
     mapping(address => address) public registrySellers;
@@ -71,13 +72,11 @@ contract Proxy {
         //ImageSeller contractImageSeller = ImageSeller(contractAddr);
         //contractImageSeller.addImageToRegistry(unencryptIpfsHash, encryptIpfsHash, discount, price, expiry);
         // for uint in call signature you must use uint256
-        bool response = contractAddr.call(
-            bytes4(keccak256("addImageToRegistry(string,string,uint256,uint256,uint256)")),
+        contractAddr.call(bytes4(keccak256("addImageToRegistry(string,string,uint256,uint256,uint256)")),
                 unencryptIpfsHash, encryptIpfsHash, discount, price, expiry);
-        if (response == true) {
-            registryHashes[unencryptIpfsHash] = contractAddr;
-        }
-        return response;
+        registryHashes[unencryptIpfsHash] = contractAddr;
+        LogImageAdded(unencryptIpfsHash);
+        return true;
     }
 
     // removeFromRegistry proxy to ImageSeller
