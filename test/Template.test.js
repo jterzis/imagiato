@@ -21,6 +21,7 @@ contract('Template', accounts => {
     })
 
 // check that it sends a query and receives a response
+    /*
 it('sends a query and receives a response', async function() {
     // for simplicity, we'll do both checks in this function
 
@@ -78,4 +79,5 @@ it('sends a query and receives a response', async function() {
     assert.isAtMost(randomNumber, 1000, 'Random number was greater than 1000')
 
 }) // end 'it' block
+*/
 }) // end 'contract' block/**

@@ -1,7 +1,7 @@
 var SimpleStorage = artifacts.require("./SimpleStorage.sol");
 
 contract('SimpleStorage', function(accounts) {
-
+/*
   it("...should store the value 89.", function() {
     return SimpleStorage.deployed().then(function(instance) {
       simpleStorageInstance = instance;
@@ -13,5 +13,5 @@ contract('SimpleStorage', function(accounts) {
       assert.equal(storedData, 89, "The value 89 was not stored.");
     });
   });
-
+*/
 });

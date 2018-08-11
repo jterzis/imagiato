@@ -14,7 +14,10 @@ contract Proxy {
     event LogMsgSender(address sender);
     event LogAddImageToRegistry(bool response);
     event LogImageAdded(string imageName);
+    event LogError(string description);
+    event LogImageSeller(address ctrct);
 
+    address[] registrySellersContracts;
     // account addresses mapped to imageseller contract instances
     mapping(address => address) public registrySellers;
     // unencrypt ipfs hashes mapped to imageseller contract instances
@@ -34,6 +37,10 @@ contract Proxy {
         _;
     }
 
+    function getContracts() view returns(address[]) {
+        return registrySellersContracts;
+    }
+
     function getSellerContract(address addr) public view returns (address) {
         emit LogMsgSender(addr);
         return registrySellers[addr];
@@ -44,21 +51,14 @@ contract Proxy {
         return registryHashes[unencryptHash];
     }
 
-    function fooImageSeller(string payload) public returns(bool) {
-        // test simple call to ImageSeller contract
-        bool response = registrySellers[msg.sender].call(
-            bytes4(sha3("fooImageSeller(string)")), payload);
-        return response;
-    }
-
     // buyFromRegistry proxy to ImageSeller
     // pass value from caller via call mechanism
     function buyFromRegistry(string unencryptIpfsHash) payable public mustExist(unencryptIpfsHash) returns(bool) {
         address contractAddr = getSellerContractFromHash(unencryptIpfsHash);
         emit LogMsgSender(msg.sender);
-        bool response = contractAddr.call.value(msg.value)(
+        contractAddr.call.value(msg.value)(
             bytes4(keccak256("buyFromRegistry(string)")), unencryptIpfsHash);
-        return response;
+        return true;
     }
 
     // addImageToRegistry: proxy contract uses call to call
@@ -72,10 +72,18 @@ contract Proxy {
         //ImageSeller contractImageSeller = ImageSeller(contractAddr);
         //contractImageSeller.addImageToRegistry(unencryptIpfsHash, encryptIpfsHash, discount, price, expiry);
         // for uint in call signature you must use uint256
+        //ImageSeller imageSeller = ImageSeller(contractAddr);
+        //imageSeller.addImageToRegistry(unencryptIpfsHash, encryptIpfsHash, discount, price, expiry);
+        if (contractAddr == ZERO_ADDR) {
+            emit LogError('Contract address not added to factory registry on creation');
+            return false;
+        }
         contractAddr.call(bytes4(keccak256("addImageToRegistry(string,string,uint256,uint256,uint256)")),
                 unencryptIpfsHash, encryptIpfsHash, discount, price, expiry);
+        emit LogImageSeller(contractAddr);
         registryHashes[unencryptIpfsHash] = contractAddr;
-        LogImageAdded(unencryptIpfsHash);
+        emit LogImageAdded(unencryptIpfsHash);
+        emit LogImageAdded(encryptIpfsHash);
         return true;
     }
 
@@ -83,36 +91,29 @@ contract Proxy {
     function removeFromRegistry(string unencryptIpfsHash) public onlySeller returns(bool) {
         emit LogMsgSender(msg.sender);
         address contractAddr = getSellerContract(msg.sender);
-        bool response = contractAddr.call(
+        contractAddr.call(
             bytes4(keccak256("removeFromRegistry(string)")), unencryptIpfsHash);
-        if (response == true) {
-            delete registryHashes[unencryptIpfsHash];
-        }
-        return response;
+        // TODO: check response from call not false before deleting!
+        delete registryHashes[unencryptIpfsHash];
+        return true;
     }
 
     // withdrawBalance proxy to ImageSeller
     function withdrawBalance(address withdrawAddress) public onlySeller returns(bool) {
         emit LogMsgSender(msg.sender);
         address contractAddr = getSellerContract(msg.sender);
-        bool response = contractAddr.call(
+        contractAddr.call(
             bytes4(keccak256("withdrawBalance(address)")), withdrawAddress);
-        return response;
+        return true;
     }
 }
 
 
 contract ImageSellerFactory is Proxy {
 
-    address[] registrySellersContracts;
-
     event LogImageSellerCreation(string description);
     event LogMsgSender(address sender);
     event LogImageSeller(address sender);
-
-    function getContracts() view returns(address[]) {
-        return registrySellersContracts;
-    }
 
     function createImageSeller() public {
         // note: msg.sender is 0 in truffle console

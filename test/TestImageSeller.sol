@@ -19,8 +19,6 @@ contract TestImageSeller {
         address sellerContract = imageFactory.getSellerContract(msgSender);
         Assert.notEqual(address(sellerContract), address(imageFactory.ZERO_ADDR), "Seller's contract not in registry!");
 
-        bool response = imageFactory.fooImageSeller("foo");
-        Assert.isTrue(bool(response), "Simple call to image seller contract failed");
         uint256 discount = 0;
         uint256 price = 100;
         uint256 ts = 1000;

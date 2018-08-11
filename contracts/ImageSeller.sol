@@ -1,4 +1,4 @@
-pragma solidity ^0.4.20;
+pragma solidity ^0.4.22;
 
 // github imports only in Remix IDE
 // import "github.com/oraclize/ethereum-api/oraclizeAPI_0.5.sol";
@@ -27,10 +27,19 @@ contract ImageSeller is usingOraclize {
     uint public creationTime;
 
     event LogMsgSender(address sender);
+    event LogUnencryptHash(string unencryptHash);
+
+    function getOwner() public view returns (address) {
+        return owner;
+    }
 
     function getSellerEncryptHash(string unencryptHash) public view returns (string) {
         emit LogMsgSender(msg.sender);
         return registry[unencryptHash].encryptIpfsHash;
+    }
+
+    function getSellerNumSales(string unencryptHash) public view returns (uint256) {
+        return registry[unencryptHash].numSales;
     }
 
     struct QueryStruct {
@@ -86,7 +95,7 @@ contract ImageSeller is usingOraclize {
     // encrypted string first can decrypt the hash.
     // Gas cost incurred by seller.
     function addImageToRegistry(string unencryptIpfsHash, string encryptIpfsHash,
-        uint256 discount, uint256 price, uint256 expiry) public onlyOwner {
+        uint discount, uint price, uint expiry) public onlyOwner {
 
         emit LogAddImageToRegistry('About to add image to registry');
         // initialize a struct to memory by directly initing each field
@@ -107,21 +116,24 @@ contract ImageSeller is usingOraclize {
     // TODO: use state object and 2 stage purchase to ensure buyer obtains unencrypted IPFS hash
     // TODO: or revert transaction see https://solidity.readthedocs.io/en/v0.4.24/solidity-by-example.html
     function buyFromRegistry(string unencryptIpfsHash) payable public returns (string) {
-        SaleStruct memory salesStruct = registry[unencryptIpfsHash];
         require(OraclizeUtils.enoughBalance(msg.value), "Not enough gas");
-        require(msg.value >= (salesStruct.price - 0.004 ether), "Insufficient Eth to buy image");
+        // need to provide enough value to cover price
+        // oraclize query price not passed on to buyer
+        require(msg.value >= ((registry[unencryptIpfsHash].price) - (200000 * 20)), "Insufficient Eth to buy image");
 
         // send query using decrypt data source
         // only deployed contract address can decrypt exact string
         // that was encrypted using oraclize public api
+        /* TODO: uncomment when oraclize works!
         bytes32 queryId = oraclize_query("decrypt", salesStruct.encryptIpfsHash,
             gasLimitForOraclize);
-
+        */
         emit LogOraclizeQuery("Oraclize query was send, standing by for answer...");
-
+        emit LogUnencryptHash(registry[unencryptIpfsHash].encryptIpfsHash);
         // add unique query ID to mapping with true until callback called
-        validIds[queryId] = QueryStruct({queried: true, decryptIpfsHash: "0"});
+        //validIds[queryId] = QueryStruct({queried: true, decryptIpfsHash: "0"});
         registry[unencryptIpfsHash].numSales += 1;
+        return registry[unencryptIpfsHash].encryptIpfsHash;
     }
 
     // removeFromRegistry removes an image from the sale registry
