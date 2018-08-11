@@ -48,6 +48,48 @@ describe('Test adding new photo to image seller marketplace', () => {
     })
 })
 
+
+describe('Test removing added photo to image seller marketplace', () => {
+    contract('ImageSellerFactory', accounts => {
+        let ImageFactory
+        let sellerAccount
+        let buyerAccount
+
+        beforeEach('Create Image Factory Instance for each test', async function () {
+            sellerAccount = accounts[1]
+            buyerAccount = accounts[2]
+            ImageFactory = await ImageSellerFactory.new()
+            await ImageFactory.createImageSeller({from: sellerAccount})
+            const sellerContractAddr = await ImageFactory.getSellerContract(sellerAccount)
+            await ImageSeller.at(sellerContractAddr).addImageToRegistry(
+                "image1", "encrypt_image1", 0, 100, 1000, {from: sellerAccount})
+        })
+
+        it('Removing image from non seller account should be prohibited', async function () {
+            try {
+                await ImageSeller.at(sellerContractAddr).removeFromRegistry("image1",
+                    {from: buyerAccount})
+                wait(7000)
+                assert.equal(1,0,"Access to sellers market has been breached")
+            } catch(e) {
+                assert.equal(1,1, "Only seller can remove images hosted on his/her market")
+            }
+        })
+
+        it('Removing image from marketplace using sellers account', async function () {
+            try {
+                await ImageSeller.at(sellerContractAddr).removeFromRegistry("image1",
+                    {from: sellerAccount})
+                let encryptHash = (await ImageSeller.at(sellerContractAddr).getSellerEncryptHash.call("image1", {from: sellerAccount}))
+                assert.equal(encryptHash, 0, "Image shouldnt exist anymore")
+            } catch(e) {
+                assert.equal(1,1, "Only seller can remove images hosted on his/her market")
+            }
+        })
+    })
+})
+
+
 describe('Test buying photo from different account than seller', () => {
     contract('ImageSellerFactory', accounts => {
         let ImageFactory
@@ -67,7 +109,7 @@ describe('Test buying photo from different account than seller', () => {
             assert.equal(numSales, 0, "Number of sales should be 0")
         })
 
-        it('Buy an image', async function () {
+        it('Buy an image with enough funds', async function () {
             let unencryptHash
             await ImageSeller.at(
                 sellerContractAddr).buyFromRegistry("image1", {from: accounts[1], value: 9000000, gas: 5000000}).then(
@@ -93,6 +135,58 @@ describe('Test buying photo from different account than seller', () => {
             let numSales = (await ImageSeller.at(
                 sellerContractAddr).getSellerNumSales .call("image1",{from: accounts[0]})).toNumber()
             assert.equal(numSales, 1, "Number of sales should be 1")
+
+            })
+
+        it('Check that seller balances are all correct', async function () {
+            let balanceBeforeWithdraw
+            web3.eth.getBalance(accounts[0], function(err,res) {
+                balanceBeforeWithdraw = res.toString(10)
+                assert.equal(balanceBeforeWithdraw, 0, "Balance should be 0 before withdrawal")
+            })
+        })
+
+        it('Check that seller balances are all correct after withdrawal', async function () {
+            let balancePostWithdraw
+            web3.eth.getBalance(accounts[0], function(err,res) {
+                balancePostWithdraw = res.toString(10)
+                assert.equal(balancePostWithdraw, 0, "Balance should be greater than 0 after withdrawal")
+            })
+        })
+
+        it('Prevent image purchase with insufficient funds given price', async function () {
+            let unencryptHash
+            try {
+                await ImageSeller.at(
+                    sellerContractAddr).buyFromRegistry("image1", {
+                    from: accounts[2],
+                    value: 1000,
+                    gas: 100000
+                }).then(
+                    function (result) {
+                        // result is an object with the following values:
+                        //
+                        // result.tx      => transaction hash, string
+                        // result.logs    => array of decoded events that were triggered within this transaction
+                        // result.receipt => transaction receipt object, which includes gas used
+                        for (var i = 0; i < result.logs.length; i++) {
+                            var log = result.logs[i];
+
+                            //console.log(log)
+                            if (log.event == "LogUnencryptHash") {
+                                // We found the event!
+                                unencryptHash = log.args.unencryptHash
+                                break;
+                            }
+                        }
+                    }
+                )
+                wait(7000)
+                assert.equal(1, 0,'VM should have reverted if require did its job')
+            } catch(e) {
+                // VM should revert if exception is thrown
+                assert.equal(1, 1, 'VM should have reverted if require did its job')
+            }
         })
     })
 })
