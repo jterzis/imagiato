@@ -22,15 +22,22 @@ contract ImageSeller is usingOraclize {
     mapping(string => SaleStruct) private registry; // private so that registry is hidden from other contracts
     mapping(bytes32 => QueryStruct) private validIds; // used for validating Query IDs
     mapping(address => uint) private withdrawals; // keep track of balance withdrawals
+    mapping(address => uint) balance; //to track msg value for purchases
     address public factory; // address of factory parent contract
     address public owner; // seller and creator of child contract
     uint public creationTime;
 
     event LogMsgSender(address sender);
     event LogUnencryptHash(string unencryptHash);
+    event LogMsgValue(uint price);
+    event LogBalance(uint bal);
 
     function getOwner() public view returns (address) {
         return owner;
+    }
+
+    function getBalance() public view returns (uint) {
+        return balance[owner];
     }
 
     function getSellerEncryptHash(string unencryptHash) public view returns (string) {
@@ -74,7 +81,7 @@ contract ImageSeller is usingOraclize {
     // Typically, called when invalid data is sent
     // Added so ether sent to this contract is reverted if the contract fails
     // otherwise, the sender's money is transferred to contract
-    function () {
+    function () payable {
         emit LogResultReceived("Reverting! Something went wrong!");
         revert();
     }
@@ -114,13 +121,11 @@ contract ImageSeller is usingOraclize {
     // check off query to prevent replay attacks
     // ultimately return unencrypted IPFS hash to caller for download.
     // TODO: use state object and 2 stage purchase to ensure buyer obtains unencrypted IPFS hash
-    // TODO: or revert transaction see https://solidity.readthedocs.io/en/v0.4.24/solidity-by-example.html
     function buyFromRegistry(string unencryptIpfsHash) payable public returns (string) {
         require(OraclizeUtils.enoughBalance(msg.value), "Not enough gas");
         // need to provide enough value to cover price
         // oraclize query price not passed on to buyer
-        require(msg.value >= ((registry[unencryptIpfsHash].price) - (200000 * 20)), "Insufficient Eth to buy image");
-
+        require(msg.value >= (registry[unencryptIpfsHash].price), "Insufficient Eth to buy image");
         // send query using decrypt data source
         // only deployed contract address can decrypt exact string
         // that was encrypted using oraclize public api
@@ -130,9 +135,12 @@ contract ImageSeller is usingOraclize {
         */
         emit LogOraclizeQuery("Oraclize query was send, standing by for answer...");
         emit LogUnencryptHash(registry[unencryptIpfsHash].encryptIpfsHash);
+        emit LogMsgValue(msg.value);
+        emit LogMsgValue(registry[unencryptIpfsHash].price);
         // add unique query ID to mapping with true until callback called
         //validIds[queryId] = QueryStruct({queried: true, decryptIpfsHash: "0"});
         registry[unencryptIpfsHash].numSales += 1;
+        balance[owner] += msg.value;
         return registry[unencryptIpfsHash].encryptIpfsHash;
     }
 
@@ -150,9 +158,13 @@ contract ImageSeller is usingOraclize {
     // uses check-effects-interactions and only owner can call
     function withdrawBalance(address withdrawAddress) public onlyOwner {
         // transfer throws on exception, safe against re-entrancy
-        require(address(this).balance > 0, "Nothing to withdraw from balance");
-        withdrawals[withdrawAddress] = address(this).balance;
-        withdrawAddress.transfer(address(this).balance);
+        require(msg.sender == withdrawAddress);
+        //require(balance[msg.sender] > 0, "Nothing to withdraw from balance");
+        emit LogBalance(balance[msg.sender]);
+        withdrawals[msg.sender] += balance[msg.sender];
+
+        msg.sender.transfer(balance[msg.sender]);
+        balance[msg.sender] = 0;
     }
 
     // Callback function for Oraclize once it retrieves data from query invocation
