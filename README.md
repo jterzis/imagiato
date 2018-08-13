@@ -10,6 +10,10 @@ Migrate contracts
 
 `truffle migrate`
 
+Install dependencies
+
+`npm install`
+
 Start application on localhost:3000
 
 `npm run start`

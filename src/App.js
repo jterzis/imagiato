@@ -7,6 +7,8 @@ import './css/open-sans.css'
 import './css/pure-min.css'
 import './App.css'
 
+var IPFS = require('ipfs')
+
 class App extends Component {
   constructor(props) {
     super(props)
@@ -31,10 +33,16 @@ class App extends Component {
 
       // Instantiate contract once web3 provided.
       this.instantiateContract()
+      this.instantiateIPFS()
     })
     .catch(() => {
       console.log('Error finding web3.')
     })
+  }
+
+  instantiateIPFS() {
+      const node = new IPFS({ repo: String(Math.random() + Date.now()) })
+      node.once('ready', () => console.log('IPFS node is ready'))
   }
 
   instantiateContract() {

@@ -43,6 +43,12 @@
     "gzip-size": "3.0.0",
     "html-webpack-plugin": "2.24.0",
     "http-proxy-middleware": "0.17.2",
+    "interface-ipfs-core": "~0.75.2",
+    "ipfsd-ctl": "~0.39.1",
+    "ipld": "~0.17.3",
+    "ipld-dag-cbor": "~0.12.1",
+    "ipld-dag-pb": "~0.14.6",
+    "is-ipfs": "~0.4.2",
     "jest": "18.1.0",
     "json-loader": "0.5.4",
     "object-assign": "4.1.0",
@@ -62,13 +68,25 @@
     "whatwg-fetch": "1.0.0"
   },
   "dependencies": {
+    "async": "^2.6.1",
     "chai": "^4.1.2",
+    "dotenv": "^2.0.0",
     "ganache-cli": "^6.1.6",
     "help": "^3.0.2",
-    "web3": "^1.0.0-beta.35",
-    "dotenv": "^2.0.0",
+    "ipfs": "^0.31.4",
+    "ipfs-api": "^22.2.4",
+    "ipfs-bitswap": "~0.20.3",
+    "ipfs-block": "~0.7.1",
+    "ipfs-block-service": "~0.14.0",
+    "ipfs-http-response": "~0.1.2",
+    "ipfs-mfs": "~0.3.0",
+    "ipfs-multipart": "~0.1.0",
+    "ipfs-repo": "~0.23.1",
+    "ipfs-unixfs": "~0.1.15",
+    "ipfs-unixfs-engine": "~0.32.1",
     "react": "^15.4.2",
-    "react-dom": "^15.4.2"
+    "react-dom": "^15.4.2",
+    "web3": "^1.0.0-beta.35"
   },
   "jest": {
     "collectCoverageFrom": [
