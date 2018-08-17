@@ -1,4 +1,4 @@
-import {Table, Grid, Button, Form } from 'react-bootstrap';
+import {Table, Grid, Button, Form, Thumbnail } from 'react-bootstrap';
 import React, { Component } from "react"
 //import SimpleStorageContract from '../build/contracts/SimpleStorage.json'
 import getWeb3 from './utils/getWeb3'
@@ -24,15 +24,19 @@ class App extends Component {
             account: null,
             ipfsHash: null,
             buffer: null,
+            imagePreviewUrl: null,
             ethAddress: null,
             blockNumber: null,
             transactionHash: null,
             gasUsed: null,
             txReceipt: null,
-            isFactory: imageSellerFactory
+            isFactory: imageSellerFactory,
+            defaultImageName: "image1",
+            defaultImagePrice: 1000000,
         }
         // bind functions so they retain class context (this)
         this.convertToBuffer = this.convertToBuffer.bind(this)
+        this.convertToUrl = this.convertToUrl.bind(this)
         this.captureFile = this.captureFile.bind(this)
     }
     // jshint ignore:start
@@ -51,18 +55,34 @@ class App extends Component {
     captureFile(event) {
         event.stopPropagation()
         event.preventDefault()
+        let readerFile = new FileReader()
         const file = event.target.files[0]
         let reader = new window.FileReader()
         reader.readAsArrayBuffer(file)
+        readerFile.onloadend = () => this.convertToUrl(readerFile)
         reader.onloadend = () => this.convertToBuffer(reader)
+        readerFile.readAsDataURL(file)
     }
+
+    // jshint ignore:start
+    convertToUrl = async(readerFile) => {
+        this.setState({imagePreviewUrl: readerFile.result})
+    }
+    // jshint ignore:end
 
     // jshint ignore:start
     convertToBuffer = async(reader) => {
         // file is converted to a buffer to prepare for uploading to IPFS
         const buffer = await Buffer.from(reader.result)
         // set this buffer using es6 syntax
-        this.setState({buffer})
+        this.setState({buffer: buffer})
+    }
+    // jshint ignore:end
+
+
+    // jshint ignore:start
+    onClickRemove = async () => {
+        this.setState({imagePreviewUrl:null})
     }
     // jshint ignore:end
 
@@ -115,7 +135,8 @@ class App extends Component {
                     console.log("IPFS Hash " + this.state.ipfsHash)
                     var ImageSellerInstance = new this.state.web3.eth.Contract(imageSellerAbi, sellerContractAddr)
                     ImageSellerInstance.methods.addImageToRegistry(
-                        "image1", this.state.ipfsHash, 0, 1000000, 1000).send({from: accounts[0]},
+                        this.state.defaultImageName, this.state.ipfsHash, 0, this.state.defaultImagePrice, 1000)
+                        .send({from: accounts[0]},
                         (error, transactionHash) => {
                             console.log(transactionHash)
                             // store tx hash in component
@@ -128,6 +149,19 @@ class App extends Component {
     // jshint ignore:end
 
     render() {
+        let {imagePreviewUrl} = this.state;
+        let $imagePreview = null;
+        if (imagePreviewUrl) {
+            $imagePreview = (
+                <Thumbnail src={imagePreviewUrl}>
+                    <p>
+                        <Button onClick = {this.onClickRemove}> Remove Image </Button>
+                    </p>
+                </Thumbnail>
+            );
+        } else {
+            $imagePreview = (<div className="previewText">Please upload an image to sell for Eth!</div>);
+        }
         return (
             <div className="App">
                 <header className="App-header">
@@ -148,6 +182,9 @@ class App extends Component {
                             type="submit">
                             Send it
                         </Button>
+                        <div className="imgPreview">
+                            {$imagePreview}
+                        </div>
                     </Form>
 
                     <hr/>
