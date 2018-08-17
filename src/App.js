@@ -83,6 +83,25 @@ class App extends Component {
     // jshint ignore:start
     onClickRemove = async () => {
         this.setState({imagePreviewUrl:null})
+        // remove via smart contract
+        this.state.isFactory.setProvider(this.state.web3.currentProvider)
+        let imageSellerFactory = this.state.isFactory
+        var imageSellerFactoryInstance
+        this.state.web3.eth.getAccounts((error, accounts) => {
+            imageSellerFactory.deployed().then(async (instance) => {
+                imageSellerFactoryInstance = instance
+                const sellerContractAddr = await imageSellerFactoryInstance.getSellerContract(accounts[0])
+                var ImageSellerInstance = new this.state.web3.eth.Contract(imageSellerAbi, sellerContractAddr)
+                ImageSellerInstance.methods.removeFromRegistry(this.state.defaultImageName).send(
+                    {from: accounts[0], gas: 1000000},
+                    (error, transactionHash) => {
+                        console.log(transactionHash)
+                        this.setState({transactionHash})
+                    }
+                )
+            })
+        })
+
     }
     // jshint ignore:end
 
@@ -165,7 +184,7 @@ class App extends Component {
         return (
             <div className="App">
                 <header className="App-header">
-                    <h1> Ethereum and InterPlanetary File System(IPFS) with Create React App</h1>
+                    <h1> Imagiato Decentralized Stock Image Marketplace on Ethereum</h1>
                 </header>
 
                 <hr />
@@ -180,8 +199,11 @@ class App extends Component {
                         <Button
                             bsStyle="primary"
                             type="submit">
-                            Send it
+                            Add to Sell Registry
                         </Button>
+                        <p>
+
+                        </p>
                         <div className="imgPreview">
                             {$imagePreview}
                         </div>

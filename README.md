@@ -8,7 +8,11 @@ Decentralized P2P Stock Image Marketplace on Ethereum
 
 Migrate contracts
 
-`truffle migrate`
+`truffle migrate --reset`
+
+Run unit and integration test suite
+
+`truffle test`
 
 Install dependencies
 
@@ -18,4 +22,6 @@ Start application on localhost:3000
 
 `npm run start`
 
-Import seed from ganache into metamask and connect to 127.0.0.1:8545
+Import seed from ganache into MetaMask and connect to 127.0.0.1:8545
+
+Navigate to localhost:3000 in browser MetaMask is connected to

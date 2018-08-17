@@ -91,6 +91,12 @@ contract ImageSeller is usingOraclize {
         _;
     }
 
+    modifier onlyExisting(string unencryptHash) {
+        if (bytes(registry[unencryptHash].encryptIpfsHash).length != 0) {
+            _;
+        }
+    }
+
     // addImageToRegistry adds ipfs hashes to registry
     // by adding mapping key for unencrypted hash whose
     // value is SalesStruct which contains encrypted hash
@@ -149,7 +155,7 @@ contract ImageSeller is usingOraclize {
     // Client needs to ensure all buyers have downloaded images
     // from IPFS before de-mounting image hash after removal from
     // registry.
-    function removeFromRegistry(string unencryptIpfsHash) public onlyOwner {
+    function removeFromRegistry(string unencryptIpfsHash) public onlyOwner onlyExisting(unencryptIpfsHash) {
         delete registry[unencryptIpfsHash];
         emit LogHashRemoved("IPFS Hash removed from registry", unencryptIpfsHash, msg.sender);
     }
