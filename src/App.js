@@ -1,4 +1,5 @@
 import {Table, Grid, Button, Form, Thumbnail } from 'react-bootstrap';
+import { saveAs } from 'file-saver/FileSaver';
 import React, { Component } from "react"
 //import SimpleStorageContract from '../build/contracts/SimpleStorage.json'
 import getWeb3 from './utils/getWeb3'
@@ -13,6 +14,7 @@ import './css/pure-min.css'
 import './App.css'
 
 var IPFS = require('ipfs')
+var base64 = require('base-64')
 
 class App extends Component {
     constructor(props) {
@@ -38,6 +40,7 @@ class App extends Component {
         this.convertToBuffer = this.convertToBuffer.bind(this)
         this.convertToUrl = this.convertToUrl.bind(this)
         this.captureFile = this.captureFile.bind(this)
+        this.onClickBuy = this.onClickBuy.bind(this)
     }
     // jshint ignore:start
     componentWillMount() {
@@ -125,6 +128,47 @@ class App extends Component {
     }
     // jshint ignore:end
 
+
+    // jshint ignore:start
+    onClickBuy() {
+        // buy ipfs hash via solidity contract
+        // then get file from ipfs
+        // and prompt user to save on local fs
+        var buf = [];
+        var data
+        var blob
+        var imgUrl
+        var img
+        this.state.isFactory.setProvider(this.state.web3.currentProvider)
+        console.log(this.state.ipfsHash)
+        ipfs.files.cat(`/ipfs/${this.state.ipfsHash}`).then(function (file) {
+            console.log('file')
+            console.log(file)
+            data = Array.prototype.slice.call(file)
+            buf = buf.concat(data)
+            console.log(buf)
+            // garbage collect last blob
+            if (typeof block !== 'undefined') {
+                window.URL.revokeObjectURL(blob)
+            }
+            // create new blob
+            buf = ipfs.types.Buffer(buf);
+            blob = new Blob([buf], {type:"image/jpg"})
+            console.log(blob)
+            imgUrl = window.URL.createObjectURL(blob)
+            console.log(imgUrl)
+            img = document.getElementById('PurchasedPhoto')
+            img.src = imgUrl
+            const ctx = img.getContext('2d')
+            var imgObj = new Image()
+            imgObj.src = imgUrl
+            imgObj.onload = function() {
+                ctx.drawImage(imgObj,0,0)
+            }
+        })
+    }
+    // jshint ignore:end
+
     // jshint ignore:start
     onSubmit = async (event) => {
         event.preventDefault()
@@ -137,10 +181,13 @@ class App extends Component {
         var imageSellerFactoryInstance
         // read in user's metamask account addr
         // save document to IPFS, return its hash, and set hash to state
-        await ipfs.add(this.state.buffer, (err, ipfsHash) => {
-            console.log(err, ipfsHash)
+        await ipfs.add(this.state.buffer, (err, files) => {
+            const file = files[0]
+            console.log(file.hash)
+            console.log(file.path)
+            console.log(err)
             //setState by setting ipfsHash to ipfsHash[0].hash
-            this.setState({ ipfsHash: ipfsHash[0].hash})
+            this.setState({ ipfsHash: file.hash})
             // call Ethereum contract factory method to create ImageSeller
             // and add image hash to registry for seller's marketplace
             this.state.web3.eth.getAccounts((error, accounts) => {
@@ -207,7 +254,13 @@ class App extends Component {
                         <div className="imgPreview">
                             {$imagePreview}
                         </div>
+                        <div className="buyImage">
+                            <Button onClick = {this.onClickBuy.bind(this)}> Buy Image </Button>
+                        </div>
                     </Form>
+                    <div>
+                        <canvas ref="canvas" width={640} height={425} id="PurchasedPhoto">Waiting for your purchase here</canvas>
+                    </div>
 
                     <hr/>
                     <Button onClick = {this.onClick}> Get Transaction Receipt </Button>
