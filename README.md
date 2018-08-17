@@ -1,22 +1,50 @@
 # imagiato
 Decentralized P2P Stock Image Marketplace on Ethereum
 =======
+## Requirements
+
+- node (>8)
+- npm
+- ganache
+- truffle
+
+`sudo apt-get update`
+
+`sudo apt-get install nodejs`
+
+`sudo apt-get install npm`
+
+Upgrade to latest node
+
+```
+sudo npm cache clean -f
+sudo npm install -g n
+sudo n latest
+```
+
+`npm install -g ganache-cli`
+
+`npm install -g truffle`
 
 ## Deploy
 
 `ganache-cli`
 
-Migrate contracts
+Compile contracts
+
+`truffle compile`
+
+Migrate contracts onto ganache local instance
 
 `truffle migrate --reset`
-
-Run unit and integration test suite
-
-`truffle test`
 
 Install dependencies
 
 `npm install`
+
+Run js and solidity unit and integration test suite
+
+`truffle test`
 
 Start application on localhost:3000
 
