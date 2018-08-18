@@ -18,6 +18,7 @@ contract ImageSeller is usingOraclize {
     *  reference and download image from IPFS host.
     */
 
+    bool isStopped = false; // for emergency stop
     uint constant gasLimitForOraclize = 175000; // gas limit for Oraclize callback
     mapping(string => SaleStruct) private registry; // private so that registry is hidden from other contracts
     mapping(bytes32 => QueryStruct) private validIds; // used for validating Query IDs
@@ -97,6 +98,19 @@ contract ImageSeller is usingOraclize {
         }
     }
 
+    modifier stoppedInEmergency {
+        require(!isStopped);
+        _;
+    }
+
+    function stopContract() public onlyOwner {
+        isStopped = true;
+    }
+
+    function resumeContract() public onlyOwner {
+        isStopped = false;
+    }
+
     // addImageToRegistry adds ipfs hashes to registry
     // by adding mapping key for unencrypted hash whose
     // value is SalesStruct which contains encrypted hash
@@ -108,7 +122,7 @@ contract ImageSeller is usingOraclize {
     // encrypted string first can decrypt the hash.
     // Gas cost incurred by seller.
     function addImageToRegistry(string unencryptIpfsHash, string encryptIpfsHash,
-        uint discount, uint price, uint expiry) public onlyOwner {
+        uint discount, uint price, uint expiry) public onlyOwner stoppedInEmergency {
 
         emit LogAddImageToRegistry('About to add image to registry');
         // initialize a struct to memory by directly initing each field
@@ -126,8 +140,7 @@ contract ImageSeller is usingOraclize {
     // increment contract balance by price, send remainder to caller
     // check off query to prevent replay attacks
     // ultimately return unencrypted IPFS hash to caller for download.
-    // TODO: use state object and 2 stage purchase to ensure buyer obtains unencrypted IPFS hash
-    function buyFromRegistry(string unencryptIpfsHash) payable public returns (string) {
+    function buyFromRegistry(string unencryptIpfsHash) payable public stoppedInEmergency returns (string) {
         require(OraclizeUtils.enoughBalance(msg.value), "Not enough gas");
         // need to provide enough value to cover price
         // oraclize query price not passed on to buyer
@@ -154,7 +167,7 @@ contract ImageSeller is usingOraclize {
     // Client needs to ensure all buyers have downloaded images
     // from IPFS before de-mounting image hash after removal from
     // registry.
-    function removeFromRegistry(string unencryptIpfsHash) public onlyOwner onlyExisting(unencryptIpfsHash) {
+    function removeFromRegistry(string unencryptIpfsHash) public onlyOwner stoppedInEmergency onlyExisting(unencryptIpfsHash) {
         delete registry[unencryptIpfsHash];
         emit LogHashRemoved("IPFS Hash removed from registry", unencryptIpfsHash, msg.sender);
     }
@@ -164,7 +177,6 @@ contract ImageSeller is usingOraclize {
     function withdrawBalance(address withdrawAddress) public onlyOwner {
         // transfer throws on exception, safe against re-entrancy
         require(msg.sender == withdrawAddress);
-        //require(balance[msg.sender] > 0, "Nothing to withdraw from balance");
         emit LogBalance(balance[msg.sender]);
         withdrawals[msg.sender] += balance[msg.sender];
 
