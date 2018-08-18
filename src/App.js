@@ -393,7 +393,7 @@ class App extends Component {
                             {$imagePreview}
                         </div>
                         <div className="buyImage">
-                            <Button onClick = {this.onClickBuy.bind(this)}> Buy Image </Button>
+                            <Button onClick = {this.onClickBuy.bind(this)}> Buy Image (.001 ETH) </Button>
                         </div>
                     </Form>
                     <div>
