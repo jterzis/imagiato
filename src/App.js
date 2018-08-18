@@ -50,6 +50,7 @@ class App extends Component {
         this.onClickBuy = this.onClickBuy.bind(this)
         this.processFile = this.processFile.bind(this)
         this.resizeMe = this.resizeMe.bind(this)
+        this.retrieveImage = this.retrieveImage.bind(this)
     }
     // jshint ignore:start
     componentWillMount() {
@@ -173,7 +174,6 @@ class App extends Component {
 
     // jshint ignore:start
     onClickRemove = async () => {
-        this.setState({imagePreviewUrl:null})
         // remove via smart contract
         this.state.isFactory.setProvider(this.state.web3.currentProvider)
         let imageSellerFactory = this.state.isFactory
@@ -188,6 +188,9 @@ class App extends Component {
                     (error, transactionHash) => {
                         console.log(transactionHash)
                         this.setState({transactionHash})
+                        if (!error) {
+                            this.setState({imagePreviewUrl: null})
+                        }
                     }
                 )
             })
@@ -216,20 +219,16 @@ class App extends Component {
     }
     // jshint ignore:end
 
-
     // jshint ignore:start
     onClickBuy = async () => {
         // buy ipfs hash via solidity contract
         // then get file from ipfs
         // and prompt user to save on local fs
-        var buf = [];
-        var data
-        var blob
-        var imgUrl
-        var img
         var imageSellerFactoryInstance
         let ImageSellerInstance
-        var imageSellerInst
+        let txHash
+        var paid = false
+        let thisComponent
         //console.log('on click buy')
         //console.log(imageSellerInstance)
         this.state.isFactory.setProvider(this.state.web3.currentProvider)
@@ -237,33 +236,53 @@ class App extends Component {
         console.log(this.state.ipfsHash)
         this.state.web3.eth.getAccounts((error, accounts) => {
             imageSellerFactory.deployed().then(async (instance) => {
+                thisComponent = this
                 imageSellerFactoryInstance = instance
                 const sellerContractAddr = await imageSellerFactoryInstance.getSellerContract(accounts[0])
                 ImageSellerInstance = new this.state.web3.eth.Contract(imageSellerAbi, sellerContractAddr)
                 ImageSellerInstance.methods.buyFromRegistry(this.state.defaultImageName).send({from: accounts[0],
-                    value: this.state.defaultImagePrice}, (error, transactionHash) => {
+                    value: this.state.defaultImagePrice}).on('transactionHash', function(transactionHash){
                     console.log(error)
                     console.log("Purchase tx hash")
                     console.log(transactionHash)
-                    this.setState({transactionHash})
+                    txHash = transactionHash
+                }).on('receipt', function(receipt){
+                    // if value exceeded price, MsgValue event will print
+                    console.log(receipt.events)
+                    //var len = Object.keys(receipt.events).length
+                    //console.log(len)
+                    console.log(receipt.events['LogMsgValue'])
+                    for(var key in receipt.events){
+                        var log = receipt.events[key]
+                        if (log.event == "LogMsgValue") {
+                            console.log('Price paid')
+                            console.log(log.returnValues.price)
+                            paid = true
+                            thisComponent.retrieveImage()
+                        }
+                    }
+                    console.log(receipt)
                 })
+                // wait for log events
+                // var event = ImageSellerInstance.methods.LogMsgValue({}, {fromBlock:0, toBlock: 'latest'})
+                // const log_info = await this.WaitAllContractEventGet(event)
+                // console.log(log_info)
+                this.setState({txHash})
+            })
+        })
 
-            })
-        })
-        /*
-        var imageSellerInst = this.state.is
-        this.state.web3.eth.getAccounts((error, accounts) => {
-            imageSellerInst.deployed().then(async (instance) => {
-                imageSellerInst = instance
-                let purchaseEvent = imageSellerInst.LogMsgValue({}, {fromBlock:0, toBlock: 'latest'})
-                purchaseEvent.get((error, logs) => {
-                    // we have logs print them
-                    logs.forEach(log => console.log(log.args))
-                })
-            })
-        })
-        */
+    }
+    // jshint ignore:end
+
+    // jshint ignore:start
+    retrieveImage() {
+        var buf = []
+        var data
+        var blob
+        var imgUrl
+        var img
         ipfs.files.cat(`/ipfs/${this.state.ipfsHash}`).then(function (file) {
+            console.log("retrieving image")
             data = Array.prototype.slice.call(file)
             buf = buf.concat(data)
             console.log(buf)
@@ -273,7 +292,7 @@ class App extends Component {
             }
             // create new blob
             buf = ipfs.types.Buffer(buf);
-            blob = new Blob([buf], {type:"image/jpg"})
+            blob = new Blob([buf], {type: "image/jpg"})
             console.log(blob)
             imgUrl = window.URL.createObjectURL(blob)
             console.log(imgUrl)
@@ -283,8 +302,8 @@ class App extends Component {
             var imgObj = new Image()
 
             imgObj.src = imgUrl
-            imgObj.onload = function() {
-                ctx.drawImage(imgObj,0,0)
+            imgObj.onload = function () {
+                ctx.drawImage(imgObj, 0, 0)
             }
         })
     }

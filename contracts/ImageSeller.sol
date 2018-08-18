@@ -142,7 +142,6 @@ contract ImageSeller is usingOraclize {
         emit LogOraclizeQuery("Oraclize query was send, standing by for answer...");
         emit LogUnencryptHash(registry[unencryptIpfsHash].encryptIpfsHash);
         emit LogMsgValue(msg.value);
-        emit LogMsgValue(registry[unencryptIpfsHash].price);
         // add unique query ID to mapping with true until callback called
         //validIds[queryId] = QueryStruct({queried: true, decryptIpfsHash: "0"});
         registry[unencryptIpfsHash].numSales += 1;
