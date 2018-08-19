@@ -53,6 +53,7 @@ class App extends Component {
         this.resizeMe = this.resizeMe.bind(this)
         this.retrieveImage = this.retrieveImage.bind(this)
         this.setWeb3 = this.setWeb3.bind(this)
+        this.onClickWithdraw = this.onClickWithdraw.bind(this)
     }
     // jshint ignore:start
     componentWillMount() {
@@ -225,6 +226,38 @@ class App extends Component {
     // jshint ignore:end
 
     // jshint ignore:start
+    onClickWithdraw = async () => {
+       var imageSellerFactoryInstance
+       let ImageSellerInstance
+       let thisComponent
+       this.state.isFactory.setProvider(this.state.web3.currentProvider)
+       this.state.web3.eth.getAccounts((error, accounts) => {
+           imageSellerFactory.deployed().then(async (instance) => {
+               thisComponent = this
+               imageSellerFactoryInstance = instance
+               if (accounts[0] !== this.state.sellerAccount) {
+                   return
+               }
+               const sellerContractAddr = await imageSellerFactoryInstance.getSellerContract(this.state.sellerAccount)
+               ImageSellerInstance = new this.state.web3.eth.Contract(imageSellerAbi, sellerContractAddr)
+               ImageSellerInstance.methods.withdrawBalance(this.state.sellerAccount).send(
+                   {from: accounts[0], gas: 1000000}).on('receipt', function(receipt) {
+                       for (var key in receipt.events) {
+                           var log = receipt.events[key]
+                           if (log.event == "LogBalance") {
+                               var balWithdrawn = log.returnValues.bal
+                               console.log("balance withdrawn")
+                               console.log(balWithdrawn)
+                               thisComponent.setState({sellerBalance: 0})
+                           }
+                       }
+               })
+           })
+       })
+    }
+    // jshint ignore:end
+
+    // jshint ignore:start
     onClickBuy = async () => {
         // buy ipfs hash via solidity contract
         // then get file from ipfs
@@ -235,10 +268,7 @@ class App extends Component {
         var paid = false
         let thisComponent
         let sellerBal
-        //console.log('on click buy')
-        //console.log(imageSellerInstance)
         this.state.isFactory.setProvider(this.state.web3.currentProvider)
-        //this.state.is.setProvider(this.state.web3.currentProvider)
         console.log(this.state.ipfsHash)
         this.state.web3.eth.getAccounts((error, accounts) => {
             imageSellerFactory.deployed().then(async (instance) => {
@@ -429,7 +459,7 @@ class App extends Component {
                     </div>
                     <hr/>
                     <Button onClick = {this.onClick}> Get Transaction Receipt </Button>
-                    <Button onClick = {this.onClick}> Withdraw Seller Balance {sellerBalance} </Button>
+                    <Button onClick = {this.onClickWithdraw}> Withdraw Seller Balance {sellerBalance} </Button>
                     <Table bordered responsive>
                         <thead>
                         <tr>
