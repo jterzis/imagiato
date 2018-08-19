@@ -28,9 +28,10 @@ class App extends Component {
         this.state = {
             web3: null,
             contract: null,
-            account: null,
+            sellerAccount: null,
             ipfsHash: null,
             buffer: null,
+            sellerBalance: 0,
             imagePreviewUrl: null,
             resized: null, //resized canvas url
             ethAddress: null,
@@ -41,7 +42,7 @@ class App extends Component {
             isFactory: imageSellerFactory,
             is: imageSellerInstance,
             defaultImageName: "image1",
-            defaultImagePrice: 1000000000000000,
+            defaultImagePrice: 2000000000000000,
         }
         // bind functions so they retain class context (this)
         this.convertToBuffer = this.convertToBuffer.bind(this)
@@ -51,12 +52,24 @@ class App extends Component {
         this.processFile = this.processFile.bind(this)
         this.resizeMe = this.resizeMe.bind(this)
         this.retrieveImage = this.retrieveImage.bind(this)
+        this.setWeb3 = this.setWeb3.bind(this)
     }
     // jshint ignore:start
     componentWillMount() {
         // Get network provider and web3 instance
         // See utils/getWeb3 for more info
 
+        this.setWeb3()
+        //getWeb3.then(results => {
+         //   this.setState({
+           //     web3: results.web3
+            //})
+        //})
+    }
+    // jshint ignore:end
+
+    // jshint ignore:start
+    setWeb3() {
         getWeb3.then(results => {
             this.setState({
                 web3: results.web3
@@ -134,14 +147,6 @@ class App extends Component {
         var ctx = canvas.getContext("2d")
         ctx.drawImage(img, 0, 0, width, height)
         var canvasURL = canvas.toDataURL("image/jpeg",0.1) // get the data from canvas as 70% JPG (can be also PNG, etc.)
-        /*var compressedImg = new Image()
-        compressedImg.src = canvasURL
-        compressedImg.onload = () => {
-            ctx.drawImage(compressedImg, 0, 0, width, height)
-        }
-        console.log('print canvas url')
-        console.log(canvasURL)
-        */
         this.setState({resized:canvasURL})
         // update sale preview of image with lower quality compressed version
         ctx.clearRect(0,0, canvas.width, canvas.height)
@@ -229,6 +234,7 @@ class App extends Component {
         let txHash
         var paid = false
         let thisComponent
+        let sellerBal
         //console.log('on click buy')
         //console.log(imageSellerInstance)
         this.state.isFactory.setProvider(this.state.web3.currentProvider)
@@ -237,27 +243,45 @@ class App extends Component {
         this.state.web3.eth.getAccounts((error, accounts) => {
             imageSellerFactory.deployed().then(async (instance) => {
                 thisComponent = this
+                sellerBal = this.state.sellerBalance
                 imageSellerFactoryInstance = instance
-                const sellerContractAddr = await imageSellerFactoryInstance.getSellerContract(accounts[0])
+                const sellerContractAddr = await imageSellerFactoryInstance.getSellerContract(this.state.sellerAccount)
                 ImageSellerInstance = new this.state.web3.eth.Contract(imageSellerAbi, sellerContractAddr)
                 ImageSellerInstance.methods.buyFromRegistry(this.state.defaultImageName).send({from: accounts[0],
-                    value: this.state.defaultImagePrice}).on('transactionHash', function(transactionHash){
-                    console.log(error)
+                    value: this.state.defaultImagePrice, gas: 1000000}).on('transactionHash', function(transactionHash){
                     console.log("Purchase tx hash")
                     console.log(transactionHash)
                     txHash = transactionHash
                 }).on('receipt', function(receipt){
                     // if value exceeded price, MsgValue event will print
                     console.log(receipt.events)
-                    //var len = Object.keys(receipt.events).length
-                    //console.log(len)
                     console.log(receipt.events['LogMsgValue'])
+                    //thisComponent.web3.eth.getBalance(sellerContractAddr, function(error, result) {
+                    //    console.log("contract balance from web3")
+                    //    console.log(result)
+                    //})
+                    ImageSellerInstance.methods.getTotalNumSales().call({from: thisComponent.sellerAccount},
+                        function(error, result) {
+                            console.log("Number of sales so far")
+                            console.log(result)
+                            console.log(error)
+                        })
+                    ImageSellerInstance.methods.getBalance().call({from: thisComponent.sellerAccount},
+                        function(error, result) {
+                        console.log("Seller balance")
+                        console.log(result)
+                        //thisComponent.setState({sellerBalance: result/parseFloat(Math.pow(10,18))})
+                        })
                     for(var key in receipt.events){
                         var log = receipt.events[key]
                         if (log.event == "LogMsgValue") {
                             console.log('Price paid')
-                            console.log(log.returnValues.price)
+                            var price = log.returnValues.price
+                            console.log(price)
                             paid = true
+                            var updatedBal = parseFloat(sellerBal) + price/parseFloat(Math.pow(10,18))
+                            console.log(updatedBal)
+                            thisComponent.setState({sellerBalance: updatedBal})
                             thisComponent.retrieveImage()
                         }
                     }
@@ -335,6 +359,7 @@ class App extends Component {
                     imageSellerFactoryInstance = instance
                     await imageSellerFactoryInstance.createImageSeller({from: accounts[0]})
                     const sellerContractAddr = await imageSellerFactoryInstance.getSellerContract(accounts[0])
+                    this.setState({ethAddress: sellerContractAddr})
                     // use web3 1.0 send and web3.eth.contract to create contract interface
                     console.log("ImageSeller ABI " + imageSellerAbi)
                     console.log("Seller contrac taddr " + sellerContractAddr)
@@ -347,6 +372,7 @@ class App extends Component {
                             console.log(transactionHash)
                             // store tx hash in component
                             this.setState({transactionHash})
+                            this.setState({sellerAccount: accounts[0]})
                         })
                 })
             })
@@ -355,7 +381,9 @@ class App extends Component {
     // jshint ignore:end
 
     render() {
+        let {sellerBalance} = this.state;
         let {imagePreviewUrl} = this.state;
+        let {defaultImagePrice} = this.state;
         let $imagePreview = null;
         if (imagePreviewUrl) {
             $imagePreview = (<div id="SellCanvasParent">
@@ -393,7 +421,7 @@ class App extends Component {
                             {$imagePreview}
                         </div>
                         <div className="buyImage">
-                            <Button onClick = {this.onClickBuy.bind(this)}> Buy Image (.001 ETH) </Button>
+                            <Button onClick = {this.onClickBuy.bind(this)}> Buy Image ({defaultImagePrice/parseFloat(Math.pow(10, 18))} ETH) </Button>
                         </div>
                     </Form>
                     <div>
@@ -401,7 +429,7 @@ class App extends Component {
                     </div>
                     <hr/>
                     <Button onClick = {this.onClick}> Get Transaction Receipt </Button>
-
+                    <Button onClick = {this.onClick}> Withdraw Seller Balance {sellerBalance} </Button>
                     <Table bordered responsive>
                         <thead>
                         <tr>
@@ -443,116 +471,4 @@ class App extends Component {
 }
 
 
-/*
-class App extends Component {
-  constructor(props) {
-    super(props)
-
-    this.state = {
-      storageValue: 0,
-      web3: null,
-        contract: null,
-        account: null
-    }
-  }
-
-  componentWillMount() {
-    // Get network provider and web3 instance.
-    // See utils/getWeb3 for more info.
-
-    getWeb3
-    .then(results => {
-      this.setState({
-        web3: results.web3
-      })
-
-      // Instantiate contract once web3 provided.
-      this.instantiateContract()
-      this.instantiateIPFS()
-    })
-    .catch(() => {
-      console.log('Error finding web3.')
-    })
-  }
-
-  instantiateIPFS() {
-      const node = new IPFS({ repo: String(Math.random() + Date.now()) })
-      node.once('ready', () => console.log('IPFS node is ready'))
-  }
-*/
-/*
-  instantiateContract() {
-    //
-     //SMART CONTRACT EXAMPLE
-     //
-     //Normally these functions would be called in the context of a
-     //state management library, but for convenience I've placed them here.
-     //
-
-    const contract = require('truffle-contract')
-    const simpleStorage = contract(SimpleStorageContract)
-    simpleStorage.setProvider(this.state.web3.currentProvider)
-
-    // Declaring this for later so we can chain functions on SimpleStorage.
-    var simpleStorageInstance
-
-    // Get accounts.
-    this.state.web3.eth.getAccounts((error, accounts) => {
-      simpleStorage.deployed().then((instance) => {
-        simpleStorageInstance = instance
-
-        // Stores a given value, 5 by default. Prompts a transaction
-        return simpleStorageInstance.set(5, {from: accounts[0]})
-      }).then((result) => {
-        // Get the value from the contract to prove it worked.
-        return simpleStorageInstance.get.call(accounts[0])
-      }).then((result) => {
-        // Update state of app with the result.
-        return this.setState({ storageValue: result.c[0], contract: simpleStorageInstance, account: accounts[0] })
-      })
-    })
-  }
-
-  handleClick(event){
-      const contract = this.state.contract;
-      const account = this.state.account;
-
-      var value = 3;
-
-      contract.set(value, {from: account})
-          .then(result =>  {
-              //read contract state
-              return contract.get.call()
-          }).then(result => {
-              //update UI
-              return this.setState({storageValue: result.c[0]})
-      })
-
-  }
-
-  render() {
-    return (
-      <div className="App">
-        <nav className="navbar pure-menu pure-menu-horizontal">
-            <a href="#" className="pure-menu-heading pure-menu-link">Truffle Box</a>
-        </nav>
-
-        <main className="container">
-          <div className="pure-g">
-            <div className="pure-u-1-1">
-              <h1>Good to Go!</h1>
-              <p>Your Truffle Box is installed and ready.</p>
-              <h2>Smart Contract Example</h2>
-              <p>If your contracts compiled and migrated successfully, below will show a stored value of 5 (by default).</p>
-              <p>Try changing the value stored on <strong>line 59</strong> of App.js.</p>
-              <p>The stored value is: {this.state.storageValue}</p>
-              <button onClick={this.handleClick.bind(this)}>Set Storage!</button>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
-}
-*/
 export default App

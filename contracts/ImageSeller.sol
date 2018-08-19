@@ -27,11 +27,18 @@ contract ImageSeller is usingOraclize {
     address public factory; // address of factory parent contract
     address public owner; // seller and creator of child contract
     uint public creationTime;
+    uint totalNumSales;
 
     event LogMsgSender(address sender);
     event LogUnencryptHash(string unencryptHash);
     event LogMsgValue(uint price);
     event LogBalance(uint bal);
+    event LogContractAddress(address);
+    event LogOwner(address);
+
+    function getTotalNumSales() public view returns (uint) {
+        return totalNumSales;
+    }
 
     function getOwner() public view returns (address) {
         return owner;
@@ -42,11 +49,11 @@ contract ImageSeller is usingOraclize {
     }
 
     function getSellerEncryptHash(string unencryptHash) public view returns (string) {
-        emit LogMsgSender(msg.sender);
+        // emit LogMsgSender(msg.sender);
         return registry[unencryptHash].encryptIpfsHash;
     }
 
-    function getSellerNumSales(string unencryptHash) public view returns (uint256) {
+    function getSellerNumSales(string unencryptHash) public view returns (uint) {
         return registry[unencryptHash].numSales;
     }
 
@@ -56,10 +63,10 @@ contract ImageSeller is usingOraclize {
     }
 
     struct SaleStruct {
-        uint256 price; // in Gwei (10^-18 ETH / 1 Gwei)
-        uint256 numSales;
-        uint256 expiry; // based on block number
-        uint256 discount; // pct expressed as int interval [0-100]
+        uint price; // in Gwei (10^-18 ETH / 1 Gwei)
+        uint numSales;
+        uint expiry; // based on block number
+        uint discount; // pct expressed as int interval [0-100]
         string encryptIpfsHash;
     }
 
@@ -69,12 +76,14 @@ contract ImageSeller is usingOraclize {
     event LogHashRemoved(string description, string unencryptIpfsHash, address owner);
     event LogAddImageToRegistry(string description);
     event LogImageSellerOwner(address);
+    event LogTotalSales(uint);
 
     function ImageSeller(address _owner) public {
         emit LogImageSellerOwner(_owner);
         owner = _owner;
         factory = msg.sender;
         creationTime = now;
+        totalNumSales = 0;
     }
 
     // Fallback function - Called if other functions don't match call or
@@ -140,7 +149,7 @@ contract ImageSeller is usingOraclize {
     // increment contract balance by price, send remainder to caller
     // check off query to prevent replay attacks
     // ultimately return unencrypted IPFS hash to caller for download.
-    function buyFromRegistry(string unencryptIpfsHash) payable public stoppedInEmergency returns (string) {
+    function buyFromRegistry(string unencryptIpfsHash) public payable stoppedInEmergency {
         require(OraclizeUtils.enoughBalance(msg.value), "Not enough gas");
         // need to provide enough value to cover price
         // oraclize query price not passed on to buyer
@@ -155,11 +164,14 @@ contract ImageSeller is usingOraclize {
         emit LogOraclizeQuery("Oraclize query was send, standing by for answer...");
         emit LogUnencryptHash(registry[unencryptIpfsHash].encryptIpfsHash);
         emit LogMsgValue(msg.value);
+        emit LogContractAddress(address(this));
+        emit LogOwner(owner);
         // add unique query ID to mapping with true until callback called
         //validIds[queryId] = QueryStruct({queried: true, decryptIpfsHash: "0"});
         registry[unencryptIpfsHash].numSales += 1;
+        totalNumSales += 1;
         balance[owner] += msg.value;
-        return registry[unencryptIpfsHash].encryptIpfsHash;
+        emit LogTotalSales(totalNumSales);
     }
 
     // removeFromRegistry removes an image from the sale registry
