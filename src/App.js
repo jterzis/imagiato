@@ -127,6 +127,7 @@ class App extends Component {
         var max_height = 10000
         var width = img.width
         var height = img.height
+        this.setState({imgWidth: width, imgHeight: height})
         // calculate the width and height, constraining the proportions
         if (width > height) {
             if (width > max_width) {
@@ -455,7 +456,7 @@ class App extends Component {
                         </div>
                     </Form>
                     <div>
-                        <canvas ref="canvas" width={10000} height={10000} id="PurchasedPhoto">Waiting for your purchase here</canvas>
+                        <canvas ref="canvas" width={this.state.imgWidth} height={this.state.imgHeight} id="PurchasedPhoto">Waiting for your purchase here</canvas>
                     </div>
                     <hr/>
                     <Button onClick = {this.onClick}> Get Transaction Receipt </Button>
