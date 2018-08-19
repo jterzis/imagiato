@@ -19,4 +19,16 @@ library OraclizeUtils {
         return string(b);
     }
 
+    function add(uint a, uint b) internal returns (uint) {
+        uint c = a + b;
+        assert(c >= a);
+        return c;
+    }
+
+    function assert(bool assertion) internal {
+        if (!assertion) {
+            throw;
+        }
+    }
+
 }

@@ -135,6 +135,7 @@ contract ImageSeller is usingOraclize {
 
         emit LogAddImageToRegistry('About to add image to registry');
         // initialize a struct to memory by directly initing each field
+        require(price > 0);
         registry[unencryptIpfsHash].price = price;
         registry[unencryptIpfsHash].discount = discount;
         registry[unencryptIpfsHash].expiry = expiry;
@@ -168,9 +169,9 @@ contract ImageSeller is usingOraclize {
         emit LogOwner(owner);
         // add unique query ID to mapping with true until callback called
         //validIds[queryId] = QueryStruct({queried: true, decryptIpfsHash: "0"});
-        registry[unencryptIpfsHash].numSales += 1;
-        totalNumSales += 1;
-        balance[owner] += msg.value;
+        registry[unencryptIpfsHash].numSales = OraclizeUtils.add(registry[unencryptIpfsHash].numSales,1);
+        totalNumSales = OraclizeUtils.add(totalNumSales, 1);
+        balance[owner] = OraclizeUtils.add(balance[owner], msg.value);
         emit LogTotalSales(totalNumSales);
     }
 
@@ -190,7 +191,7 @@ contract ImageSeller is usingOraclize {
         // transfer throws on exception, safe against re-entrancy
         require(msg.sender == withdrawAddress);
         emit LogBalance(balance[msg.sender]);
-        withdrawals[msg.sender] += balance[msg.sender];
+        withdrawals[msg.sender] = OraclizeUtils.add(withdrawals[msg.sender], balance[msg.sender]);
 
         msg.sender.transfer(balance[msg.sender]);
         balance[msg.sender] = 0;
