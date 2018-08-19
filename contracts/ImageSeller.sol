@@ -33,8 +33,14 @@ contract ImageSeller is usingOraclize {
     event LogUnencryptHash(string unencryptHash);
     event LogMsgValue(uint price);
     event LogBalance(uint bal);
-    event LogContractAddress(address);
-    event LogOwner(address);
+    event LogContractAddress(address contractAddr);
+    event LogOwner(address owner);
+    event LogOraclizeQuery(string description);
+    event LogResultReceived(string result);
+    event LogHashRemoved(string description, string unencryptIpfsHash, address owner);
+    event LogAddImageToRegistry(string description);
+    event LogImageSellerOwner(address owner);
+    event LogTotalSales(uint sales);
 
     function getTotalNumSales() public view returns (uint) {
         return totalNumSales;
@@ -70,13 +76,6 @@ contract ImageSeller is usingOraclize {
         string encryptIpfsHash;
     }
 
-    // events used to track contract actions
-    event LogOraclizeQuery(string description);
-    event LogResultReceived(string result);
-    event LogHashRemoved(string description, string unencryptIpfsHash, address owner);
-    event LogAddImageToRegistry(string description);
-    event LogImageSellerOwner(address);
-    event LogTotalSales(uint);
 
     function ImageSeller(address _owner) public {
         emit LogImageSellerOwner(_owner);
