@@ -103,7 +103,8 @@ by right clicking and "Save As" on your browser.
 
 Unit tests are written in solidity while integration tests between ImageSellerFactory
 and ImageSeller contracts are written in javascript taking advantage of web3 .10 api utilities
-mainly account import. 
+mainly account import. There are total 11 tests spanning the two deployed contracts, ImageSellerFactory,
+and ImageSeller. 
 
 Tests span a typical life cycle usage from the perspective of both an image seller creating
 their own marketplace / adding inventory (photos) with price parameters and a buyer purchasing
