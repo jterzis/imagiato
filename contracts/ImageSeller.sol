@@ -1,22 +1,20 @@
 pragma solidity ^0.4.22;
 
-// github imports only in Remix IDE
-// import "github.com/oraclize/ethereum-api/oraclizeAPI_0.5.sol";
 import "./OraclizeAPI_0pt5.sol";
 import "./OraclizeUtils.sol";
 
-
+/** @title Image Seller Contract */
 contract ImageSeller is usingOraclize {
-    /* @dev One contract created per seller address
-    *  @dev This contract stores registry of IPFS hash
-    *  addresses (1 encrypted, 1 unencrypted) referencing
-    *  image locations in IPFS per seller (owner).
-    *  @dev Sales are performed via atomic transfer of eth
-    *  to contract owner's address and de-cryption of IPFS
-    *  encrypted hash of full size non watermarked image.
-    *  Onus is on client to take returned de-crypted hash
-    *  reference and download image from IPFS host.
-    */
+    /** @dev One contract created per seller address
+     *  This contract stores registry of IPFS hash
+     *  addresses (1 encrypted, 1 unencrypted) referencing
+     *  image locations in IPFS per seller (owner).
+     *  Sales are performed via atomic transfer of eth
+     *  to contract owner's address and de-cryption of IPFS
+     *  encrypted hash of full size non watermarked image.
+     *  Onus is on client to take returned de-crypted hash
+     *  reference and download image from IPFS host.
+     */
 
     bool isStopped = false; // for emergency stop
     uint constant gasLimitForOraclize = 175000; // gas limit for Oraclize callback
@@ -119,18 +117,18 @@ contract ImageSeller is usingOraclize {
         isStopped = false;
     }
 
-    // addImageToRegistry adds ipfs hashes to registry
-    // by adding mapping key for unencrypted hash whose
-    // value is SalesStruct which contains encrypted hash
-    // of corresponding IPFS reference as well as pricing
-    // parameters. Schedule callback with oraclize for
-    // encrypted IPFS hash, which presumably was encrypted
-    // on client using oraclize public key.
-    // Only contract that registered oraclize callback to
-    // encrypted string first can decrypt the hash.
-    // Gas cost incurred by seller.
     function addImageToRegistry(string unencryptIpfsHash, string encryptIpfsHash,
         uint discount, uint price, uint expiry) public onlyOwner stoppedInEmergency {
+        /** @dev addImageToRegistry adds IPFS hashes to registry by
+         *  mapping unenrypted hash key whose value is SalesStruct
+         *  containing encrypted hash of corresponding IPFS ref hash
+         *  along with pricing parameters for image file.
+         *  @param unencryptIpfsHash - plain text name of image file
+         *  @param encryptIpfsHash - encrypted hash ref from IPFS
+         *  @param discount - discount (0,100)
+         *  @param price - price in Wei (10^18 Wei / Ether)
+         *  @param expiry - in block number
+        */
 
         emit LogAddImageToRegistry('About to add image to registry');
         // initialize a struct to memory by directly initing each field
@@ -143,13 +141,14 @@ contract ImageSeller is usingOraclize {
         emit LogAddImageToRegistry('Image added to registry');
     }
 
-    // buyFromRegistry uses check-effects-interactions pattern to
-    // check msg value sent against price of image corresponding to IPFS hash,
-    // ensure unencrypted hash of true image is available from oraclize
-    // increment contract balance by price, send remainder to caller
-    // check off query to prevent replay attacks
-    // ultimately return unencrypted IPFS hash to caller for download.
     function buyFromRegistry(string unencryptIpfsHash) public payable stoppedInEmergency {
+        /** @dev buyFromRegistry uses check-effects-interactions pattern
+         *  to check msg.value sent against price of image and incrementing
+         *  contract balance to account for purchase. Events used to transmit
+         *  success metadata. Frontend should mine event data to ensure tx went
+         *  through successfully.
+         *  @param unencryptIpfsHash - image name
+         */
         require(OraclizeUtils.enoughBalance(msg.value), "Not enough gas");
         // need to provide enough value to cover price
         // oraclize query price not passed on to buyer
@@ -157,7 +156,7 @@ contract ImageSeller is usingOraclize {
         // send query using decrypt data source
         // only deployed contract address can decrypt exact string
         // that was encrypted using oraclize public api
-        /* TODO: uncomment when oraclize works!
+        /**
         bytes32 queryId = oraclize_query("decrypt", salesStruct.encryptIpfsHash,
             gasLimitForOraclize);
         */
@@ -167,37 +166,37 @@ contract ImageSeller is usingOraclize {
         emit LogContractAddress(address(this));
         emit LogOwner(owner);
         // add unique query ID to mapping with true until callback called
-        //validIds[queryId] = QueryStruct({queried: true, decryptIpfsHash: "0"});
         registry[unencryptIpfsHash].numSales = OraclizeUtils.add(registry[unencryptIpfsHash].numSales,1);
         totalNumSales = OraclizeUtils.add(totalNumSales, 1);
         balance[owner] = OraclizeUtils.add(balance[owner], msg.value);
         emit LogTotalSales(totalNumSales);
     }
 
-    // removeFromRegistry removes an image from the sale registry
-    // and emits an event. Only the seller can remove an image.
-    // Client needs to ensure all buyers have downloaded images
-    // from IPFS before de-mounting image hash after removal from
-    // registry.
     function removeFromRegistry(string unencryptIpfsHash) public onlyOwner stoppedInEmergency onlyExisting(unencryptIpfsHash) {
+        /** @dev removeFromRegistry removes an image from the sale registry and emits an event.
+         *  Only the seller can remove an image. Client (caller) should ensure all buyers have
+         *  downloaded images (pull from IPFS using hash).
+         *  @param unencryptIpfsHash - image name
+         */
         delete registry[unencryptIpfsHash];
         emit LogHashRemoved("IPFS Hash removed from registry", unencryptIpfsHash, msg.sender);
     }
 
-    // withdrawBalance transfers balance to an address
-    // uses check-effects-interactions and only owner can call
     function withdrawBalance(address withdrawAddress) public onlyOwner {
-        // transfer throws on exception, safe against re-entrancy
+        /** @dev transfers balance to an ethereum address.
+         *  Can only be called by contract owner.
+         *  Uses check-effects-interactions pattern
+         */
         require(msg.sender == withdrawAddress);
         emit LogBalance(balance[msg.sender]);
         withdrawals[msg.sender] = OraclizeUtils.add(withdrawals[msg.sender], balance[msg.sender]);
-
+        // transfer throws on exception and safe against re-entrancy
         msg.sender.transfer(balance[msg.sender]);
         balance[msg.sender] = 0;
     }
 
-    // Callback function for Oraclize once it retrieves data from query invocation
     function __callback(bytes32 queryId, string result, bytes proof) public {
+        // @dev Callback function for Oraclize once it retrieves data from query invocation
         require(msg.sender == oraclize_cbAddress());
         require(validIds[queryId].queried);
 
@@ -210,9 +209,10 @@ contract ImageSeller is usingOraclize {
 
     }
 
-    // TODO: remove in prod
-    function fooImageSeller(string payload) public {
-        emit LogResultReceived(payload);
-        emit LogImageSellerOwner(owner);
+    function safeDestroy() onlyOwner {
+        /** @dev Low cost way to teardown
+         *  contract and send bal to owner
+         */
+        selfdestruct(owner);
     }
 }
