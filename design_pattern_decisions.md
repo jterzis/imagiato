@@ -53,4 +53,7 @@ within `VideoSellerFactory`. The proxy would still store child contract `VideoSe
 Therefore, using inheritance with factory method is particularly extensible since only one method needs to be implemented
 as the child contracts the factory outputs change with the introduction of new products to sell in the decentralized marketplace.
 
+#### Pattern 4: Emergency Stop
  
+ Implemented in ImageSeller contract. Can only be set by contract owner (deployer). Prevents running methods to add new images,
+ or buy an images as a buyer.
