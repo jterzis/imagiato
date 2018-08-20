@@ -98,6 +98,22 @@ at bottom of dapp. Once the transaction is sent via MetaMask (should prompt you)
 original uncompressed image should appear on your screen which you can then download
 by right clicking and "Save As" on your browser.
 
+
+## Notes on Unit/Integration Tests
+
+Unit tests are written in solidity while integration tests between ImageSellerFactory
+and ImageSeller contracts are written in javascript taking advantage of web3 .10 api utilities
+mainly account import. 
+
+Tests span a typical life cycle usage from the perspective of both an image seller creating
+their own marketplace / adding inventory (photos) with price parameters and a buyer purchasing
+an image in a p2p manner. 
+
+The tests try to test good and bad code pathways. There's a test where an image is purchased
+using insufficient Eth which should fail ultimately. There are tests that test the admin
+modifiers on the ImageSeller contract; only the deployer (seller) should be able to add or
+remove an image from their marketplace.
+
 ## Todo
 
 - Allow for multiple images to be simultaneously hosted by multiple sellers
